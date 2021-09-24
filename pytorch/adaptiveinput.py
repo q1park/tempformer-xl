@@ -27,25 +27,23 @@ class AdaptiveInput(nn.Module):
         self.n_clusters = len(self.cutoffs) - 1
         self.head_size = self.cutoffs[0]
 
-        #         self.head = nn.Sequential(nn.Embedding(self.head_size, self.in_features),
-        #                                   nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
-
+        # self.head = nn.Sequential(nn.Embedding(self.head_size, self.in_features),
+        #                           nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
         self.head = nn.Embedding(self.head_size, self.d_model)
-        #                                   nn.Linear(self.in_features, self.in_features, bias=self.head_bias))
 
         self.tail = nn.ModuleList()
 
         for i in range(self.n_clusters):
-            hsz = int(self.d_model // (self.div_value ** (i + 1)))
             osz = self.cutoffs[i + 1] - self.cutoffs[i]
+            self.tail.append(nn.Embedding(osz, self.d_model))
 
-            projection = nn.Sequential(
-                nn.Embedding(osz, hsz),
-                nn.Linear(hsz, self.d_model, bias=False),
-                nn.Dropout(self.tail_drop)
-            )
-
-            self.tail.append(projection)
+            # hsz = int(self.d_model // (self.div_value ** (i + 1)))
+            # projection = nn.Sequential(
+            #     nn.Embedding(osz, hsz),
+            #     nn.Linear(hsz, self.d_model, bias=False),
+            #     nn.Dropout(self.tail_drop)
+            # )
+            # self.tail.append(projection)
 
     def forward(self, input):
         used_rows = 0

@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Fixed README">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/adaptiveinput.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptiveinput.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/utils/adaptive_softmax.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/utils/log_uniform_sampler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/utils/proj_adaptive_softmax.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,7 +28,12 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/pytorch" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/pytorch" />
+    </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -32,6 +44,21 @@
       <option name="presentableId" value="Default" />
       <updated>1632408930271</updated>
     </task>
+    <task id="LOCAL-00001" summary="-Removed code that is not relevant to Transformer-XL algorithm">
+      <created>1632487187890</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1632487187890</updated>
+    </task>
+    <task id="LOCAL-00002" summary="-Fixed README">
+      <created>1632497768509</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1632497768509</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -45,5 +72,10 @@
       </map>
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="-Removed code that is not relevant to Transformer-XL algorithm" />
+    <MESSAGE value="-Fixed README" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Fixed README" />
   </component>
 </project>

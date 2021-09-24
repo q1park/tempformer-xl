@@ -86,7 +86,7 @@ parser.add_argument('--mem_len', type=int, default=0,
                     help='length of the retained previous heads')
 parser.add_argument('--not_tied', action='store_true',
                     help='do not tie the word embedding and softmax weights')
-parser.add_argument('--seed', type=int, default=1111,
+parser.add_argument('--seed', type=int, default=1234,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
@@ -223,7 +223,7 @@ def weights_init(m):
             init_weight(m.weight)
         if hasattr(m, 'bias') and m.bias is not None:
             init_bias(m.bias)
-    elif classname.find('AdaptiveEmbedding') != -1:
+    elif classname.find('AdaptiveInput') != -1:
         if hasattr(m, 'emb_projs'):
             for i in range(len(m.emb_projs)):
                 if m.emb_projs[i] is not None:
@@ -231,11 +231,10 @@ def weights_init(m):
     elif classname.find('Embedding') != -1:
         if hasattr(m, 'weight'):
             init_weight(m.weight)
-    elif classname.find('ProjectedAdaptiveLogSoftmax') != -1:
-        if hasattr(m, 'cluster_weight') and m.cluster_weight is not None:
-            init_weight(m.cluster_weight)
-        if hasattr(m, 'cluster_bias') and m.cluster_bias is not None:
-            init_bias(m.cluster_bias)
+    elif classname.find('AdaptiveLogSoftmax') != -1:
+        if hasattr(m, 'cluster') and m.cluster is not None:
+            init_weight(m.cluster.weight)
+            init_bias(m.cluster.bias)
         if hasattr(m, 'out_projs'):
             for i in range(len(m.out_projs)):
                 if m.out_projs[i] is not None:

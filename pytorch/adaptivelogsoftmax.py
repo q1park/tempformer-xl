@@ -33,25 +33,23 @@ class AdaptiveLogSoftmax(Module):
         self.n_clusters = len(self.cutoffs) - 1
         self.head_size = self.shortlist_size + self.n_clusters
 
-        self.head = Linear(self.d_model, self.head_size, bias=self.head_bias)
+        self.head = Linear(self.d_model, self.shortlist_size, bias=self.head_bias)
+        self.cluster = Linear(self.d_model, self.n_clusters, bias=True)
         self.tail = ModuleList()
 
         for i in range(self.n_clusters):
-            hsz = int(self.d_model // (self.div_value ** (i + 1)))
+
             osz = self.cutoffs[i + 1] - self.cutoffs[i]
 
-            projection = Sequential(
-                Linear(self.d_model, osz, bias=True),
-                nn.Dropout(self.tail_drop)
-            )
+            self.tail.append(Linear(self.d_model, osz, bias=True))
 
-            #             projection = Sequential(
-            #                 Linear(self.d_model, hsz, bias=False),
-            #                 Linear(hsz, osz, bias=False),
-            #                 nn.Dropout(self.tail_drop)
-            #             )
-
-            self.tail.append(projection)
+            # hsz = int(self.d_model // (self.div_value ** (i + 1)))
+            # projection = Sequential(
+            #     Linear(self.d_model, hsz, bias=False),
+            #     Linear(hsz, osz, bias=False),
+            #     nn.Dropout(self.tail_drop)
+            # )
+            # self.tail.append(projection)
 
     def reset_parameters(self):
         self.head.reset_parameters()
@@ -107,7 +105,7 @@ class AdaptiveLogSoftmax(Module):
                                                      target.min().item(),
                                                      target.max().item()))
 
-        head_output = self.head(input)
+        head_output = torch.cat([self.head(input), self.cluster(input)], dim=-1)
         head_logprob = F.log_softmax(head_output, dim=1)
         output += head_logprob.gather(1, gather_inds.unsqueeze(1)).squeeze()
         loss = (-output).mean()
@@ -145,7 +143,7 @@ class AdaptiveLogSoftmax(Module):
             - Output: :math:`(N, \texttt{n\_classes})`
         """
 
-        head_output = self.head(input)
+        head_output = torch.cat([self.head(input), self.cluster(input)], dim=-1)
         return self._get_full_log_prob(input, head_output)
 
     def predict(self, input):
@@ -160,7 +158,7 @@ class AdaptiveLogSoftmax(Module):
             - Output: :math:`(N)`
         """
 
-        head_output = self.head(input)
+        head_output = torch.cat([self.head(input), self.cluster(input)], dim=-1)
         output = torch.argmax(head_output, dim=1)
         not_in_shortlist = (output >= self.shortlist_size)
         all_in_shortlist = not (not_in_shortlist.any())
