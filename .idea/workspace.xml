@@ -2,39 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/getdata.sh" beforeDir="false" afterPath="$PROJECT_DIR$/getdata.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/prep_text8.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_enwik8_base.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_enwik8_large.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_lm1b_base.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_lm1b_large.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_text8_base.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_text8_large.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_large.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/avg_checkpoints.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/data_utils.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/gpu_utils.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/model.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/enwik8_base_gpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/enwik8_large_tpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/lm1b_base_gpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/lm1b_large_tpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/text8_base_gpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/text8_large_tpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/wt103_base_gpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/scripts/wt103_large_tpu.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/sota/download.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/sota/enwik8.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/sota/lm1b.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/sota/text8.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/sota/wt103.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/tpu_estimator.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/train.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/train_gpu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tf/vocabulary.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -75,5 +44,6 @@
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
 </project>
