@@ -44,25 +44,8 @@ class PositionwiseFF(nn.Module):
             nn.Dropout(dropout),
         )
 
-        self.layer_norm = nn.LayerNorm(d_model)
-
-        self.pre_lnorm = pre_lnorm
-
     def forward(self, inp):
-        if self.pre_lnorm:
-            ##### layer normalization + positionwise feed-forward
-            core_out = self.CoreNet(self.layer_norm(inp))
-
-            ##### residual connection
-            output = core_out + inp
-        else:
-            ##### positionwise feed-forward
-            core_out = self.CoreNet(inp)
-
-            ##### residual connection + layer normalization
-            output = self.layer_norm(inp + core_out)
-
-        return output
+        return self.CoreNet(inp)
 
 class RelMultiHeadAttn(nn.Module):
     def __init__(self, n_head, d_model, d_head, dropout, dropatt=0,
@@ -74,48 +57,26 @@ class RelMultiHeadAttn(nn.Module):
         self.d_head = d_head
         self.dropout = dropout
 
-        self.qkv_net = nn.Linear(d_model, 3 * n_head * d_head, bias=False)
+        self.q_net = nn.Linear(d_model, n_head * d_head, bias=False)
+        self.kv_net = nn.Linear(d_model, 2 * n_head * d_head, bias=False)
 
         self.drop = nn.Dropout(dropout)
         self.dropatt = nn.Dropout(dropatt)
         self.o_net = nn.Linear(n_head * d_head, d_model, bias=False)
-
-        self.layer_norm = nn.LayerNorm(d_model)
+        self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
 
         self.scale = 1 / (d_head ** 0.5)
 
-        self.pre_lnorm = pre_lnorm
+    def forward(self, w, r, r_w_bias, r_r_bias, qlen, attn_mask=None):
+        klen, rlen, bsz = w.size(0), r.size(0), w.size(1)
 
-        self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
-
-    def forward(self, w, r, r_w_bias, r_r_bias, attn_mask=None, mems=None):
-        qlen, rlen, bsz = w.size(0), r.size(0), w.size(1)
-
-        if mems is not None:
-            cat = torch.cat([mems, w], 0)
-            if self.pre_lnorm:
-                w_heads = self.qkv_net(self.layer_norm(cat))
-            else:
-                w_heads = self.qkv_net(cat)
-            r_head_k = self.r_net(r)
-
-            w_head_q, w_head_k, w_head_v = torch.chunk(w_heads, 3, dim=-1)
-            w_head_q = w_head_q[-qlen:]
-        else:
-            if self.pre_lnorm:
-                w_heads = self.qkv_net(self.layer_norm(w))
-            else:
-                w_heads = self.qkv_net(w)
-            r_head_k = self.r_net(r)
-
-            w_head_q, w_head_k, w_head_v = torch.chunk(w_heads, 3, dim=-1)
-
-        klen = w_head_k.size(0)
+        w_head_q = self._forward_Q(w[-qlen:])
+        w_head_k, w_head_v = self._forward_KV(w)
+        r_head_k = self.r_net(r)
 
         w_head_q = w_head_q.view(qlen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
         w_head_k = w_head_k.view(klen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
         w_head_v = w_head_v.view(klen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
-
         r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)  # qlen x n_head x d_head
 
         #### compute attention score
@@ -154,14 +115,7 @@ class RelMultiHeadAttn(nn.Module):
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
-        if self.pre_lnorm:
-            ##### residual connection
-            output = w + attn_out
-        else:
-            ##### residual connection + layer normalization
-            output = self.layer_norm(w + attn_out)
-
-        return output
+        return attn_out
 
     def _rel_shift(self, x, zero_triu=False):
         zero_pad = torch.zeros((x.size(0), 1, *x.size()[2:]),
@@ -178,27 +132,35 @@ class RelMultiHeadAttn(nn.Module):
 
         return x
 
+    def _forward_Q(self, x):
+        return self.q_net(x)
 
-
+    def _forward_KV(self, x):
+        w_head_kv = self.kv_net(x)
+        return torch.chunk(w_head_kv, 2, dim=-1)
 
 class RelPartialLearnableDecoderLayer(nn.Module):
     def __init__(self, n_head, d_model, d_head, d_inner, dropout,
                  **kwargs):
         super(RelPartialLearnableDecoderLayer, self).__init__()
 
-        self.dec_attn = RelMultiHeadAttn(n_head, d_model,
-                            d_head, dropout, **kwargs)
-        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, 
-                                     pre_lnorm=kwargs.get('pre_lnorm'))
+        self.dec_attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, **kwargs)
+        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, pre_lnorm=kwargs.get('pre_lnorm'))
+
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
 
     def forward(self, dec_inp, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
-
-        output = self.dec_attn(dec_inp, r, r_w_bias, r_r_bias,
-                               attn_mask=dec_attn_mask,
-                               mems=mems)
-        output = self.pos_ff(output)
-
-        return output
+        if mems is not None:
+            x_mem = torch.cat([mems, dec_inp], dim=0)
+        x = self.norm1(
+            dec_inp + self.dec_attn(
+                x_mem, r, r_w_bias, r_r_bias, qlen=dec_inp.size(0), attn_mask=dec_attn_mask)
+        )
+        x = self.norm2(
+            x + self.pos_ff(x)
+        )
+        return x
 
 from adaptiveinput import AdaptiveInput
 from adaptivelogsoftmax import AdaptiveLogSoftmax

@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Fixed README">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/adaptiveinput.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptiveinput.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/adaptive_softmax.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/log_uniform_sampler.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/proj_adaptive_softmax.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +51,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632497768509</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code">
+      <created>1632520431799</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1632520431799</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -76,6 +76,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="-Removed code that is not relevant to Transformer-XL algorithm" />
     <MESSAGE value="-Fixed README" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Fixed README" />
+    <MESSAGE value="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code" />
   </component>
 </project>
