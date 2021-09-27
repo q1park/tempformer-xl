@@ -165,16 +165,6 @@ if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
 # Validate `--fp16` option
-if args.fp16:
-    if not args.cuda:
-        print('WARNING: --fp16 requires --cuda, ignoring --fp16 option')
-        args.fp16 = False
-    else:
-        try:
-            from apex.fp16_utils import FP16_Optimizer
-        except:
-            print('WARNING: apex not installed, ignoring --fp16 option')
-            args.fp16 = False
 
 device = torch.device('cuda:1' if args.cuda else 'cpu')
 
@@ -223,11 +213,7 @@ def weights_init(m):
             init_weight(m.weight)
         if hasattr(m, 'bias') and m.bias is not None:
             init_bias(m.bias)
-    elif classname.find('AdaptiveInput') != -1:
-        if hasattr(m, 'emb_projs'):
-            for i in range(len(m.emb_projs)):
-                if m.emb_projs[i] is not None:
-                    nn.init.normal_(m.emb_projs[i], 0.0, args.proj_init_std)
+
     elif classname.find('Embedding') != -1:
         if hasattr(m, 'weight'):
             init_weight(m.weight)
@@ -235,10 +221,7 @@ def weights_init(m):
         if hasattr(m, 'cluster') and m.cluster is not None:
             init_weight(m.cluster.weight)
             init_bias(m.cluster.bias)
-        if hasattr(m, 'out_projs'):
-            for i in range(len(m.out_projs)):
-                if m.out_projs[i] is not None:
-                    nn.init.normal_(m.out_projs[i], 0.0, args.proj_init_std)
+
     elif classname.find('LayerNorm') != -1:
         if hasattr(m, 'weight'):
             nn.init.normal_(m.weight, 1.0, args.init_std)
@@ -267,8 +250,7 @@ def update_dropatt(m):
 if args.restart:
     with open(os.path.join(args.restart_dir, 'model.pt'), 'rb') as f:
         model = torch.load(f)
-    if not args.fp16:
-        model = model.float()
+    model = model.float()
     model.apply(update_dropout)
     model.apply(update_dropatt)
 else:
@@ -281,87 +263,23 @@ else:
         clamp_len=args.clamp_len, sample_softmax=args.sample_softmax)
     model.apply(weights_init)
     model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
+
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.layers.parameters()])
 
-if args.fp16:
-    model = model.half()
 
-if args.multi_gpu:
-    model = model.to(device)
-    if args.gpu0_bsz >= 0:
-        para_model = BalancedDataParallel(args.gpu0_bsz // args.batch_chunk,
-                                          model, dim=1).to(device)
-    else:
-        para_model = nn.DataParallel(model, dim=1).to(device)
-else:
-    para_model = model.to(device)
+para_model = model.to(device)
 
 #### optimizer
-if args.optim.lower() == 'sgd':
-    if args.sample_softmax > 0:
-        dense_params, sparse_params = [], []
-        for param in model.parameters():
-            if param.size() == model.word_emb.weight.size():
-                sparse_params.append(param)
-            else:
-                dense_params.append(param)
-        optimizer_sparse = optim.SGD(sparse_params, lr=args.lr * 2)
-        optimizer = optim.SGD(dense_params, lr=args.lr, momentum=args.mom)
-    else:
-        optimizer = optim.SGD(model.parameters(), lr=args.lr,
-            momentum=args.mom)
-elif args.optim.lower() == 'adam':
-    if args.sample_softmax > 0:
-        dense_params, sparse_params = [], []
-        for param in model.parameters():
-            if param.size() == model.word_emb.weight.size():
-                sparse_params.append(param)
-            else:
-                dense_params.append(param)
-        optimizer_sparse = optim.SparseAdam(sparse_params, lr=args.lr)
-        optimizer = optim.Adam(dense_params, lr=args.lr)
-    else:
-        optimizer = optim.Adam(model.parameters(), lr=args.lr)
-elif args.optim.lower() == 'adagrad':
-    optimizer = optim.Adagrad(model.parameters(), lr=args.lr)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
+
 
 #### scheduler
-if args.scheduler == 'cosine':
-    # here we do not set eta_min to lr_min to be backward compatible
-    # because in previous versions eta_min is default to 0
-    # rather than the default value of lr_min 1e-6
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
-        args.max_step, eta_min=args.eta_min) # should use eta_min arg
-    if args.sample_softmax > 0:
-        scheduler_sparse = optim.lr_scheduler.CosineAnnealingLR(optimizer_sparse,
-            args.max_step, eta_min=args.eta_min) # should use eta_min arg
-elif args.scheduler == 'inv_sqrt':
-    # originally used for Transformer (in Attention is all you need)
-    def lr_lambda(step):
-        # return a multiplier instead of a learning rate
-        if step == 0 and args.warmup_step == 0:
-            return 1.
-        else:
-            return 1. / (step ** 0.5) if step > args.warmup_step \
-                   else step / (args.warmup_step ** 1.5)
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
-elif args.scheduler == 'dev_perf':
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-        factor=args.decay_rate, patience=args.patience, min_lr=args.lr_min)
-    if args.sample_softmax > 0:
-        scheduler_sparse = optim.lr_scheduler.ReduceLROnPlateau(optimizer_sparse,
-            factor=args.decay_rate, patience=args.patience, min_lr=args.lr_min)
-elif args.scheduler == 'constant':
-    pass
-
-if args.cuda and args.fp16:
-    # If args.dynamic_loss_scale is False, static_loss_scale will be used.
-    # If args.dynamic_loss_scale is True, it will take precedence over static_loss_scale.
-    optimizer = FP16_Optimizer(optimizer,
-                               static_loss_scale = args.static_loss_scale,
-                               dynamic_loss_scale = args.dynamic_loss_scale,
-                               dynamic_loss_args = {'init_scale': 2 ** 16})
+# here we do not set eta_min to lr_min to be backward compatible
+# because in previous versions eta_min is default to 0
+# rather than the default value of lr_min 1e-6
+scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
+    args.max_step, eta_min=args.eta_min) # should use eta_min arg
 
 if args.restart:
     if os.path.exists(os.path.join(args.restart_dir, 'optimizer.pt')):
@@ -435,46 +353,29 @@ def train():
                 ret = para_model(data_i, target_i, *mems[i])
                 loss, mems[i] = ret[0], ret[1:]
                 loss = loss.float().mean().type_as(loss) / args.batch_chunk
-                if args.fp16:
-                    optimizer.backward(loss)
-                else:
-                    loss.backward()
+                loss.backward()
                 train_loss += loss.float().item()
         else:
             ret = para_model(data, target, *mems)
             loss, mems = ret[0], ret[1:]
             loss = loss.float().mean().type_as(loss)
-            if args.fp16:
-                optimizer.backward(loss)
-            else:
-                loss.backward()
+            loss.backward()
             train_loss += loss.float().item()
 
-        if args.fp16:
-            optimizer.clip_master_grads(args.clip)
-        else:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()
-        if args.sample_softmax > 0:
-            optimizer_sparse.step()
 
         # step-wise learning rate annealing
         train_step += 1
-        if args.scheduler in ['cosine', 'constant', 'dev_perf']:
-            # linear warmup stage
-            if train_step < args.warmup_step:
-                curr_lr = args.lr * train_step / args.warmup_step
-                optimizer.param_groups[0]['lr'] = curr_lr
-                if args.sample_softmax > 0:
-                    optimizer_sparse.param_groups[0]['lr'] = curr_lr * 2
-            else:
-                if args.scheduler == 'cosine':
-                    scheduler.step(train_step)
-                    if args.sample_softmax > 0:
-                        scheduler_sparse.step(train_step)
-        elif args.scheduler == 'inv_sqrt':
+
+        # linear warmup stage
+        if train_step < args.warmup_step:
+            curr_lr = args.lr * train_step / args.warmup_step
+            optimizer.param_groups[0]['lr'] = curr_lr
+
+        else:
             scheduler.step(train_step)
+
 
         if train_step % args.log_interval == 0:
             cur_loss = train_loss / args.log_interval
@@ -516,8 +417,6 @@ def train():
             # dev-performance based learning rate annealing
             if args.scheduler == 'dev_perf':
                 scheduler.step(val_loss)
-                if args.sample_softmax > 0:
-                    scheduler_sparse.step(val_loss)
 
             eval_start_time = time.time()
 
