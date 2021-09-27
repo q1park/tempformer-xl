@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Moved memory concatenation outside of the attention module">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Cleaned up training script">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -65,7 +66,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632748329099</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="-Cleaned up training script">
+      <created>1632749266595</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1632749266595</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -85,6 +93,7 @@
     <MESSAGE value="-Fixed README" />
     <MESSAGE value="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code" />
     <MESSAGE value="-Moved memory concatenation outside of the attention module" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Moved memory concatenation outside of the attention module" />
+    <MESSAGE value="-Cleaned up training script" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Cleaned up training script" />
   </component>
 </project>

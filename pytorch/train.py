@@ -40,11 +40,7 @@ parser.add_argument('--dropatt', type=float, default=0.0,
                     help='attention probability dropout rate')
 parser.add_argument('--init', default='normal', type=str,
                     help='parameter initializer to use.')
-parser.add_argument('--emb_init', default='normal', type=str,
-                    help='parameter initializer to use.')
 parser.add_argument('--init_range', type=float, default=0.1,
-                    help='parameters initialized by U(-init_range, init_range)')
-parser.add_argument('--emb_init_range', type=float, default=0.01,
                     help='parameters initialized by U(-init_range, init_range)')
 parser.add_argument('--init_std', type=float, default=0.02,
                     help='parameters initialized by N(0, init_std)')
@@ -96,8 +92,6 @@ parser.add_argument('--div_val', type=int, default=1,
                     help='divident value for adapative input and softmax')
 parser.add_argument('--pre_lnorm', action='store_true',
                     help='apply LayerNorm to the input instead of the output')
-parser.add_argument('--varlen', action='store_true',
-                    help='use variable length')
 parser.add_argument('--multi_gpu', action='store_true',
                     help='use multiple GPU')
 parser.add_argument('--log-interval', type=int, default=200,
@@ -106,10 +100,6 @@ parser.add_argument('--eval-interval', type=int, default=4000,
                     help='evaluation interval')
 parser.add_argument('--work_dir', default='LM-TFM', type=str,
                     help='experiment directory.')
-parser.add_argument('--restart', action='store_true',
-                    help='restart training from the saved checkpoint')
-parser.add_argument('--restart_dir', type=str, default='',
-                    help='restart dir')
 parser.add_argument('--debug', action='store_true',
                     help='run in debug mode (do not create exp dir)')
 parser.add_argument('--same_length', action='store_true',
@@ -121,26 +111,12 @@ parser.add_argument('--clamp_len', type=int, default=-1,
                     help='use the same pos embeddings after clamp_len')
 parser.add_argument('--eta_min', type=float, default=0.0,
                     help='min learning rate for cosine scheduler')
-parser.add_argument('--gpu0_bsz', type=int, default=-1,
-                    help='batch size on gpu 0')
 parser.add_argument('--max_eval_steps', type=int, default=-1,
                     help='max eval steps')
 parser.add_argument('--sample_softmax', type=int, default=-1,
                     help='number of samples in sampled softmax')
-parser.add_argument('--patience', type=int, default=0,
-                    help='patience')
-parser.add_argument('--finetune_v2', action='store_true',
-                    help='finetune v2')
-parser.add_argument('--finetune_v3', action='store_true',
-                    help='finetune v3')
-parser.add_argument('--fp16', action='store_true',
-                    help='Run in pseudo-fp16 mode (fp16 storage fp32 math).')
-parser.add_argument('--static-loss-scale', type=float, default=1,
-                    help='Static loss scale, positive power of 2 values can '
-                    'improve fp16 convergence.')
-parser.add_argument('--dynamic-loss-scale', action='store_true',
-                    help='Use dynamic loss scaling.  If supplied, this argument'
-                    ' supersedes --static-loss-scale.')
+
+
 args = parser.parse_args()
 args.tied = not args.not_tied
 
@@ -164,8 +140,6 @@ if torch.cuda.is_available():
     else:
         torch.cuda.manual_seed_all(args.seed)
 
-# Validate `--fp16` option
-
 device = torch.device('cuda:1' if args.cuda else 'cpu')
 
 ###############################################################################
@@ -186,13 +160,10 @@ te_iter = corpus.get_iterator('test', eval_batch_size, args.eval_tgt_len,
 # adaptive softmax / embedding
 cutoffs, tie_projs = [], [False]
 if args.adaptive:
-    assert args.dataset in ['wt103', 'lm1b']
-    if args.dataset == 'wt103':
-        cutoffs = [20000, 40000, 200000]
-        tie_projs += [True] * len(cutoffs)
-    elif args.dataset == 'lm1b':
-        cutoffs = [60000, 100000, 640000]
-        tie_projs += [False] * len(cutoffs)
+    assert args.dataset == 'wt103'
+    cutoffs = [20000, 40000, 200000]
+    tie_projs += [True] * len(cutoffs)
+
 
 ###############################################################################
 # Build the model
@@ -237,36 +208,19 @@ def weights_init(m):
         if hasattr(m, 'r_bias'):
             init_bias(m.r_bias)
 
-def update_dropout(m):
-    classname = m.__class__.__name__
-    if classname.find('Dropout') != -1:
-        if hasattr(m, 'p'):
-            m.p = args.dropout
 
-def update_dropatt(m):
-    if hasattr(m, 'dropatt'):
-        m.dropatt.p = args.dropatt
-
-if args.restart:
-    with open(os.path.join(args.restart_dir, 'model.pt'), 'rb') as f:
-        model = torch.load(f)
-    model = model.float()
-    model.apply(update_dropout)
-    model.apply(update_dropatt)
-else:
-    model = MemTransformerLM(ntokens, args.n_layer, args.n_head, args.d_model,
-        args.d_head, args.d_inner, args.dropout, args.dropatt,
-        tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
-        tie_projs=tie_projs, pre_lnorm=args.pre_lnorm, tgt_len=args.tgt_len,
-        ext_len=args.ext_len, mem_len=args.mem_len, cutoffs=cutoffs,
-        same_length=args.same_length, attn_type=args.attn_type,
-        clamp_len=args.clamp_len, sample_softmax=args.sample_softmax)
-    model.apply(weights_init)
-    model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
+model = MemTransformerLM(ntokens, args.n_layer, args.n_head, args.d_model,
+    args.d_head, args.d_inner, args.dropout, args.dropatt,
+    tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
+    tie_projs=tie_projs, pre_lnorm=args.pre_lnorm, tgt_len=args.tgt_len,
+    ext_len=args.ext_len, mem_len=args.mem_len, cutoffs=cutoffs,
+    same_length=args.same_length, attn_type=args.attn_type,
+    clamp_len=args.clamp_len, sample_softmax=args.sample_softmax)
+model.apply(weights_init)
+model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.layers.parameters()])
-
 
 para_model = model.to(device)
 
@@ -280,14 +234,6 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 # rather than the default value of lr_min 1e-6
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
     args.max_step, eta_min=args.eta_min) # should use eta_min arg
-
-if args.restart:
-    if os.path.exists(os.path.join(args.restart_dir, 'optimizer.pt')):
-        with open(os.path.join(args.restart_dir, 'optimizer.pt'), 'rb') as f:
-            opt_state_dict = torch.load(f)
-            optimizer.load_state_dict(opt_state_dict)
-    else:
-        print('Optimizer was not saved. Start from scratch.')
 
 logging('=' * 100)
 for k, v in args.__dict__.items():
@@ -341,7 +287,7 @@ def train():
         mems = [tuple() for _ in range(args.batch_chunk)]
     else:
         mems = tuple()
-    train_iter = tr_iter.get_varlen_iter() if args.varlen else tr_iter
+    train_iter = tr_iter
     for batch, (data, target, seq_len) in enumerate(train_iter):
         model.zero_grad()
         if args.batch_chunk > 1:
@@ -384,10 +330,7 @@ def train():
                       '| ms/batch {:5.2f} | loss {:5.2f}'.format(
                 epoch, train_step, batch+1, optimizer.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss)
-            if args.dataset in ['enwik8', 'text8']:
-                log_str += ' | bpc {:9.5f}'.format(cur_loss / math.log(2))
-            else:
-                log_str += ' | ppl {:9.3f}'.format(math.exp(cur_loss))
+            log_str += ' | ppl {:9.3f}'.format(math.exp(cur_loss))
             logging(log_str)
             train_loss = 0
             log_start_time = time.time()
@@ -399,10 +342,7 @@ def train():
                       '| valid loss {:5.2f}'.format(
                 train_step // args.eval_interval, train_step,
                 (time.time() - eval_start_time), val_loss)
-            if args.dataset in ['enwik8', 'text8']:
-                log_str += ' | bpc {:9.5f}'.format(val_loss / math.log(2))
-            else:
-                log_str += ' | valid ppl {:9.3f}'.format(math.exp(val_loss))
+            log_str += ' | valid ppl {:9.3f}'.format(math.exp(val_loss))
             logging(log_str)
             logging('-' * 100)
             # Save the model if the validation loss is the best we've seen so far.
@@ -413,10 +353,6 @@ def train():
                     with open(os.path.join(args.work_dir, 'optimizer.pt'), 'wb') as f:
                         torch.save(optimizer.state_dict(), f)
                 best_val_loss = val_loss
-
-            # dev-performance based learning rate annealing
-            if args.scheduler == 'dev_perf':
-                scheduler.step(val_loss)
 
             eval_start_time = time.time()
 
@@ -451,10 +387,7 @@ para_model = model.to(device)
 # Run on test data.
 test_loss = evaluate(te_iter)
 logging('=' * 100)
-if args.dataset in ['enwik8', 'text8']:
-    logging('| End of training | test loss {:5.2f} | test bpc {:9.5f}'.format(
-        test_loss, test_loss / math.log(2)))
-else:
-    logging('| End of training | test loss {:5.2f} | test ppl {:9.3f}'.format(
-        test_loss, math.exp(test_loss)))
+
+logging('| End of training | test loss {:5.2f} | test ppl {:9.3f}'.format(
+    test_loss, math.exp(test_loss)))
 logging('=' * 100)
