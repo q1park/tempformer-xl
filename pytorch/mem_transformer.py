@@ -20,7 +20,7 @@ class PositionalEmbedding(nn.Module):
         self.register_buffer('inv_freq', inv_freq)
 
     def forward(self, pos_seq, bsz=None):
-        sinusoid_inp = torch.ger(pos_seq, self.inv_freq)
+        sinusoid_inp = torch.outer(pos_seq, self.inv_freq)
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
 
         if bsz is not None:
@@ -30,7 +30,7 @@ class PositionalEmbedding(nn.Module):
 
 
 class PositionwiseFF(nn.Module):
-    def __init__(self, d_model, d_inner, dropout, pre_lnorm=False):
+    def __init__(self, d_model, d_inner, dropout):
         super(PositionwiseFF, self).__init__()
 
         self.d_model = d_model
@@ -48,8 +48,7 @@ class PositionwiseFF(nn.Module):
         return self.CoreNet(inp)
 
 class RelMultiHeadAttn(nn.Module):
-    def __init__(self, n_head, d_model, d_head, dropout, dropatt=0,
-                 tgt_len=None, ext_len=None, mem_len=None, pre_lnorm=False):
+    def __init__(self, n_head, d_model, d_head, dropout, dropatt=0):
         super(RelMultiHeadAttn, self).__init__()
 
         self.n_head = n_head
@@ -92,13 +91,8 @@ class RelMultiHeadAttn(nn.Module):
         attn_score.mul_(self.scale)
 
         #### compute attention probability
-        if attn_mask is not None and attn_mask.any().item():
-            if attn_mask.dim() == 2:
-                attn_score = attn_score.float().masked_fill(
-                    attn_mask[None, :, :, None], -float('inf')).type_as(attn_score)
-            elif attn_mask.dim() == 3:
-                attn_score = attn_score.float().masked_fill(
-                    attn_mask[:, :, :, None], -float('inf')).type_as(attn_score)
+        if attn_mask is not None:
+            attn_score = attn_mask(attn_score)
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
@@ -118,10 +112,9 @@ class RelMultiHeadAttn(nn.Module):
         return attn_out
 
     def _rel_shift(self, x, zero_triu=False):
-        zero_pad = torch.zeros((x.size(0), 1, *x.size()[2:]),
-                               device=x.device, dtype=x.dtype)
-        x_padded = torch.cat([zero_pad, x], dim=1)
+        zero_pad = torch.zeros((x.size(0), 1, *x.size()[2:]), device=x.device, dtype=x.dtype)
 
+        x_padded = torch.cat([zero_pad, x], dim=1)
         x_padded = x_padded.view(x.size(1) + 1, x.size(0), *x.size()[2:])
 
         x = x_padded[1:].view_as(x)
@@ -140,39 +133,70 @@ class RelMultiHeadAttn(nn.Module):
         return torch.chunk(w_head_kv, 2, dim=-1)
 
 class RelPartialLearnableDecoderLayer(nn.Module):
-    def __init__(self, n_head, d_model, d_head, d_inner, dropout,
-                 **kwargs):
+    def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt):
         super(RelPartialLearnableDecoderLayer, self).__init__()
 
-        self.dec_attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, **kwargs)
-        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, pre_lnorm=kwargs.get('pre_lnorm'))
+        self.attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, dropatt)
+        self.ff = PositionwiseFF(d_model, d_inner, dropout)
 
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.norm = nn.ModuleList([
+            nn.LayerNorm(d_model),
+            nn.LayerNorm(d_model)
+        ])
 
-    def forward(self, dec_inp, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
+    def forward(self, x, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
         if mems is not None:
-            x_mem = torch.cat([mems, dec_inp], dim=0)
-        x = self.norm1(
-            dec_inp + self.dec_attn(
-                x_mem, r, r_w_bias, r_r_bias, qlen=dec_inp.size(0), attn_mask=dec_attn_mask)
-        )
-        x = self.norm2(
-            x + self.pos_ff(x)
-        )
+            x_mem = torch.cat([mems, x], dim=0)
+
+        x = self.norm[0](
+            x + self.attn(x_mem, r, r_w_bias, r_r_bias, qlen=x.size(0), attn_mask=dec_attn_mask))
+        x = self.norm[1](
+            x + self.ff(x))
         return x
+
+import torch
+from torch import nn
+
+
+class XlMask(nn.Module):
+    """
+    Creates, registers, and applies the attention score mask
+    """
+
+    def __init__(self, tgt_len: int, mem_len: int, same_length: bool):
+        super(XlMask, self).__init__()
+        self.tgt_len = tgt_len
+        self.klen = tgt_len + mem_len
+        self.same_length = same_length
+
+        self.attn_mask = self.make_mask()
+        # self.register_buffer('attn_mask', attn_mask)
+
+    def forward(self, x):
+        # x.shape = (l_q, l_k, 1, 1)
+        mask = self.attn_mask[:, -x.size(1):, None, None]
+        # x.masked_fill_(mask.to(x.device), -float('inf'))
+        x.masked_fill_(mask.to(x.device), -torch.finfo(x.dtype).max)
+        return x
+
+    def make_mask(self):
+        # causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).byte()
+        causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).bool()
+
+        if self.same_length:
+            # causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).byte()
+            causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).bool()
+        return causal_mask
 
 from adaptiveinput import AdaptiveInput
 from adaptivelogsoftmax import AdaptiveLogSoftmax
 
 class MemTransformerLM(nn.Module):
-    def __init__(self, n_token, n_layer, n_head, d_model, d_head, d_inner,
-                 dropout, dropatt, tie_weight=True, d_embed=None, 
-                 div_val=1, tie_projs=[False], pre_lnorm=False,
-                 tgt_len=None, ext_len=None, mem_len=None, 
-                 cutoffs=[], adapt_inp=False,
-                 same_length=False, attn_type=0, clamp_len=-1, 
-                 sample_softmax=-1):
+    def __init__(
+            self, n_token, n_layer, n_head, d_model, d_head, d_inner, dropout, dropatt,
+            tie_weight=True, d_embed=None, div_val=1, pre_lnorm=False,
+            tgt_len=None, ext_len=None, mem_len=None, cutoffs=[], same_length=False, clamp_len=-1
+    ):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
 
@@ -193,20 +217,15 @@ class MemTransformerLM(nn.Module):
         self.ext_len = ext_len
         self.max_klen = tgt_len + ext_len + mem_len
 
-        self.attn_type = attn_type
-
         self.layers = nn.ModuleList()
 
         for i in range(n_layer):
             self.layers.append(
-                RelPartialLearnableDecoderLayer(
-                    n_head, d_model, d_head, d_inner, dropout,
-                    tgt_len=tgt_len, ext_len=ext_len, mem_len=mem_len,
-                    dropatt=dropatt, pre_lnorm=pre_lnorm)
+                RelPartialLearnableDecoderLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
             )
+        self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
 
         # use adaptive softmax (including standard softmax)
-
         self.crit = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
 
         if tie_weight:
@@ -271,23 +290,11 @@ class MemTransformerLM(nn.Module):
 
         mlen = mems[0].size(0) if mems is not None else 0
         klen = mlen + qlen
-        if self.same_length:
-            all_ones = word_emb.new_ones(qlen, klen)
-            mask_len = klen - self.mem_len
-            if mask_len > 0:
-                mask_shift_len = qlen - mask_len
-            else:
-                mask_shift_len = qlen
-            dec_attn_mask = (torch.triu(all_ones, 1+mlen)
-                    + torch.tril(all_ones, -mask_shift_len)).byte()[:, :, None] # -1
-        else:
-            dec_attn_mask = torch.triu(
-                word_emb.new_ones(qlen, klen), diagonal=1+mlen).byte()[:,:,None]
 
         hids = []
 
-        pos_seq = torch.arange(klen-1, -1, -1.0, device=word_emb.device,
-                               dtype=word_emb.dtype)
+        pos_seq = torch.arange(klen-1, -1, -1.0, device=word_emb.device, dtype=word_emb.dtype)
+
         if self.clamp_len > 0:
             pos_seq.clamp_(max=self.clamp_len)
         pos_emb = self.pos_emb(pos_seq)
@@ -299,7 +306,7 @@ class MemTransformerLM(nn.Module):
         for i, layer in enumerate(self.layers):
             mems_i = None if mems is None else mems[i]
             core_out = layer(core_out, pos_emb, self.r_w_bias,
-                    self.r_r_bias, dec_attn_mask=dec_attn_mask, mems=mems_i)
+                    self.r_r_bias, dec_attn_mask=self.mask, mems=mems_i)
             hids.append(core_out)
 
 
@@ -371,7 +378,7 @@ if __name__ == '__main__':
                             d_embed=d_embed, div_val=div_val, 
                             tie_projs=tie_projs, pre_lnorm=True,
                             tgt_len=tgt_len, ext_len=ext_len, mem_len=mem_len, 
-                            cutoffs=cutoffs, attn_type=0).to(device)
+                            cutoffs=cutoffs).to(device)
 
             print(sum(p.numel() for p in model.parameters()))
 

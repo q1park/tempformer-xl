@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Cleaned up training script">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Cleaned up training script even more">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -73,7 +73,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632749266595</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="-Cleaned up training script even more">
+      <created>1632780311764</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1632780311764</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -94,6 +101,7 @@
     <MESSAGE value="-Updated adaptive embedding and output modules&#10;-Removed additional extraneous code" />
     <MESSAGE value="-Moved memory concatenation outside of the attention module" />
     <MESSAGE value="-Cleaned up training script" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Cleaned up training script" />
+    <MESSAGE value="-Cleaned up training script even more" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Cleaned up training script even more" />
   </component>
 </project>

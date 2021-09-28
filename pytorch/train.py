@@ -70,7 +70,7 @@ parser.add_argument('--max_step', type=int, default=100000,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=60,
                     help='batch size')
-parser.add_argument('--batch_chunk', type=int, default=4,
+parser.add_argument('--batch_chunk', type=int, default=2,
                     help='split batch into chunks to save memory')
 parser.add_argument('--tgt_len', type=int, default=70,
                     help='number of tokens to predict')
@@ -82,7 +82,7 @@ parser.add_argument('--mem_len', type=int, default=0,
                     help='length of the retained previous heads')
 parser.add_argument('--not_tied', action='store_true',
                     help='do not tie the word embedding and softmax weights')
-parser.add_argument('--seed', type=int, default=1234,
+parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', action='store_true',
                     help='use CUDA')
@@ -113,8 +113,6 @@ parser.add_argument('--eta_min', type=float, default=0.0,
                     help='min learning rate for cosine scheduler')
 parser.add_argument('--max_eval_steps', type=int, default=-1,
                     help='max eval steps')
-parser.add_argument('--sample_softmax', type=int, default=-1,
-                    help='number of samples in sampled softmax')
 
 
 args = parser.parse_args()
@@ -158,11 +156,10 @@ te_iter = corpus.get_iterator('test', eval_batch_size, args.eval_tgt_len,
     device=device, ext_len=args.ext_len)
 
 # adaptive softmax / embedding
-cutoffs, tie_projs = [], [False]
+cutoffs = []
 if args.adaptive:
     assert args.dataset == 'wt103'
     cutoffs = [20000, 40000, 200000]
-    tie_projs += [True] * len(cutoffs)
 
 
 ###############################################################################
@@ -210,12 +207,11 @@ def weights_init(m):
 
 
 model = MemTransformerLM(ntokens, args.n_layer, args.n_head, args.d_model,
-    args.d_head, args.d_inner, args.dropout, args.dropatt,
-    tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
-    tie_projs=tie_projs, pre_lnorm=args.pre_lnorm, tgt_len=args.tgt_len,
-    ext_len=args.ext_len, mem_len=args.mem_len, cutoffs=cutoffs,
-    same_length=args.same_length, attn_type=args.attn_type,
-    clamp_len=args.clamp_len, sample_softmax=args.sample_softmax)
+                         args.d_head, args.d_inner, args.dropout, args.dropatt,
+                         tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
+                         pre_lnorm=args.pre_lnorm, tgt_len=args.tgt_len,
+                         ext_len=args.ext_len, mem_len=args.mem_len, cutoffs=cutoffs,
+                         same_length=args.same_length,clamp_len=args.clamp_len)
 model.apply(weights_init)
 model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
@@ -320,7 +316,7 @@ def train():
             optimizer.param_groups[0]['lr'] = curr_lr
 
         else:
-            scheduler.step(train_step)
+            scheduler.step()
 
 
         if train_step % args.log_interval == 0:
