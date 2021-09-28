@@ -135,7 +135,7 @@ class RelPartialLearnableDecoderLayer(nn.Module):
 
     def forward(self, x, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
         if mems is not None:
-            x_mem = torch.cat([mems, x], dim=0)
+            x_mem = torch.cat([mems.to(x.device), x], dim=0)
 
         x = self.norm[0](
             x + self.attn(x_mem, r, r_w_bias, r_r_bias, qlen=x.size(0), attn_mask=dec_attn_mask))
@@ -143,6 +143,8 @@ class RelPartialLearnableDecoderLayer(nn.Module):
             x + self.ff(x))
         return x
 
+from xlmemory import XlMemory
+from xlmemories import XlMemories
 
 class MemTransformerLM(nn.Module):
     def __init__(
@@ -152,6 +154,7 @@ class MemTransformerLM(nn.Module):
     ):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
+        self.n_layer = n_layer
 
         d_embed = d_model if d_embed is None else d_embed
         self.d_embed = d_embed
@@ -161,25 +164,19 @@ class MemTransformerLM(nn.Module):
 
         self.word_emb = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
 
-        self.drop = nn.Dropout(dropout)
-
-        self.n_layer = n_layer
-
-        self.tgt_len = tgt_len
-        self.mem_len = mem_len
-        self.ext_len = ext_len
-        self.max_klen = tgt_len + ext_len + mem_len
-
         self.layers = nn.ModuleList()
 
         for i in range(n_layer):
             self.layers.append(
                 RelPartialLearnableDecoderLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
             )
+
         self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
 
         # use adaptive softmax (including standard softmax)
         self.crit = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
+
+        self.drop = nn.Dropout(dropout)
 
         if tie_weight:
             self.word_emb.head.weight = self.crit.head.weight
@@ -196,57 +193,15 @@ class MemTransformerLM(nn.Module):
         self.r_w_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
         self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
 
-    def reset_length(self, tgt_len, ext_len, mem_len):
-        self.tgt_len = tgt_len
-        self.mem_len = mem_len
-        self.ext_len = ext_len
-        self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=self.mask.same_length)
-
-    def init_mems(self):
-        if self.mem_len > 0:
-            mems = []
-            param = next(self.parameters())
-            for i in range(self.n_layer+1):
-                empty = torch.empty(0, dtype=param.dtype, device=param.device)
-                mems.append(empty)
-
-            return mems
-        else:
-            return None
-
-    def _update_mems(self, hids, mems, qlen, mlen):
-        # does not deal with None
-        if mems is None: return None
-
-        # mems is not None
-        assert len(hids) == len(mems), 'len(hids) != len(mems)'
-
-        # There are `mlen + qlen` steps that can be cached into mems
-        # For the next step, the last `ext_len` of the `qlen` tokens
-        # will be used as the extended context. Hence, we only cache
-        # the tokens from `mlen + qlen - self.ext_len - self.mem_len`
-        # to `mlen + qlen - self.ext_len`.
-        with torch.no_grad():
-            new_mems = []
-            end_idx = mlen + max(0, qlen - 0 - self.ext_len)
-            beg_idx = max(0, end_idx - self.mem_len)
-            for i in range(len(hids)):
-
-                cat = torch.cat([mems[i], hids[i]], dim=0)
-                new_mems.append(cat[beg_idx:end_idx].detach())
-
-        return new_mems
-
-    def _forward(self, dec_inp, mems=None):
+    def _forward(self, dec_inp, memory=None):
         qlen, bsz = dec_inp.size()
 
         word_emb = self.word_emb(dec_inp)
 
-        mlen = mems[0].size(0) if mems is not None else 0
+        mlen = memory[0].size(0) if memory is not None else 0
         klen = mlen + qlen
 
         hids = []
-
         pos_seq = torch.arange(klen-1, -1, -1.0, device=word_emb.device, dtype=word_emb.dtype)
 
         if self.clamp_len > 0:
@@ -258,37 +213,28 @@ class MemTransformerLM(nn.Module):
 
         hids.append(core_out)
         for i, layer in enumerate(self.layers):
-            mems_i = None if mems is None else mems[i]
-            core_out = layer(core_out, pos_emb, self.r_w_bias,
-                    self.r_r_bias, dec_attn_mask=self.mask, mems=mems_i)
+            core_out = layer(
+                core_out, pos_emb, self.r_w_bias, self.r_r_bias,
+                dec_attn_mask=self.mask, mems=memory[i]
+            )
             hids.append(core_out)
 
 
         core_out = self.drop(core_out)
 
-        new_mems = self._update_mems(hids, mems, mlen, qlen)
+        memory.update_memory(hids, memory, mlen, qlen)
 
-        return core_out, new_mems
+        return core_out, memory
 
-    def forward(self, data, target, *mems):
-        # nn.DataParallel does not allow size(0) tensors to be broadcasted.
-        # So, have to initialize size(0) mems inside the model forward.
-        # Moreover, have to return new_mems to allow nn.DataParallel to piece
-        # them together.
-        if not mems: mems = self.init_mems()
-
+    def forward(self, data, target, memory: XlMemory):
         tgt_len = target.size(0)
-        hidden, new_mems = self._forward(data, mems=mems)
+        hidden, new_mems = self._forward(data, memory=memory)
 
         pred_hid = hidden[-tgt_len:]
-
         output = self.crit(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))
         loss = -output.output.view(tgt_len, -1)
 
-        if new_mems is None:
-            return [loss]
-        else:
-            return [loss] + new_mems
+        return loss, new_mems
 
 if __name__ == '__main__':
     import argparse

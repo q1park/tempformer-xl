@@ -11,8 +11,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from data_utils import get_lm_corpus
+
 from mem_transformer import MemTransformerLM
+from xlmemories import XlMemories
+
+from data_utils import get_lm_corpus
 from utils.exp_utils import create_exp_dir
 
 parser = argparse.ArgumentParser(description='PyTorch Transformer Language Model')
@@ -214,6 +217,8 @@ model = MemTransformerLM(ntokens, args.n_layer, args.n_head, args.d_model,
 model.apply(weights_init)
 model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
+
+
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.layers.parameters()])
 
@@ -247,28 +252,40 @@ def evaluate(eval_iter):
 
     # If the model does not use memory at all, make the ext_len longer.
     # Otherwise, make the mem_len longer and keep the ext_len the same.
+    eval_tgt_len = args.eval_tgt_len
+
     if args.mem_len == 0:
-        model.reset_length(args.eval_tgt_len,
-            args.ext_len+args.tgt_len-args.eval_tgt_len, args.mem_len)
+        eval_ext_len = args.ext_len+args.tgt_len-args.eval_tgt_len
+        eval_mem_len = args.mem_len
     else:
-        model.reset_length(args.eval_tgt_len,
-            args.ext_len, args.mem_len+args.tgt_len-args.eval_tgt_len)
+        eval_ext_len = args.ext_len
+        eval_mem_len = args.mem_len+args.tgt_len-args.eval_tgt_len
 
     # Evaluation
     total_len, total_loss = 0, 0.
+
+    eval_memories = XlMemories(
+        n_stream=1,
+        n_layer=args.n_layer,
+        tgt_len=eval_tgt_len,
+        mem_len=eval_mem_len,
+        ext_len=eval_ext_len,
+        dtype=next(model.parameters()).dtype
+    )
+
     with torch.no_grad():
-        mems = tuple()
+
         for i, (data, target, seq_len) in enumerate(eval_iter):
             if args.max_eval_steps > 0 and i >= args.max_eval_steps:
                 break
-            ret = model(data, target, *mems)
-            loss, mems = ret[0], ret[1:]
+            loss, new_eval_memory = model(data, target, eval_memories[0])
+            eval_memories.update_memory_stream(stream_index=0, memory=new_eval_memory)
+
             loss = loss.mean()
             total_loss += seq_len * loss.float().item()
             total_len += seq_len
 
     # Switch back to the training mode
-    model.reset_length(args.tgt_len, args.ext_len, args.mem_len)
     model.train()
 
     return total_loss / total_len
@@ -278,30 +295,33 @@ def train():
     # Turn on training mode which enables dropout.
     global train_step, train_loss, best_val_loss, eval_start_time, log_start_time
     model.train()
-    if args.batch_chunk > 1:
-        mems = [tuple() for _ in range(args.batch_chunk)]
-    else:
-        mems = tuple()
+
+    memories = XlMemories(
+        n_stream=args.batch_chunk,
+        n_layer=args.n_layer,
+        tgt_len=args.tgt_len,
+        mem_len=args.mem_len,
+        ext_len=args.ext_len,
+        dtype=next(model.parameters()).dtype
+    )
+
     train_iter = tr_iter
     for batch, (data, target, seq_len) in enumerate(train_iter):
         model.zero_grad()
-        if args.batch_chunk > 1:
-            data_chunks = torch.chunk(data, args.batch_chunk, 1)
-            target_chunks = torch.chunk(target, args.batch_chunk, 1)
-            for i in range(args.batch_chunk):
-                data_i = data_chunks[i].contiguous()
-                target_i = target_chunks[i].contiguous()
-                ret = para_model(data_i, target_i, *mems[i])
-                loss, mems[i] = ret[0], ret[1:]
-                loss = loss.float().mean().type_as(loss) / args.batch_chunk
-                loss.backward()
-                train_loss += loss.float().item()
-        else:
-            ret = para_model(data, target, *mems)
-            loss, mems = ret[0], ret[1:]
-            loss = loss.float().mean().type_as(loss)
+
+        data_chunks = torch.chunk(data, args.batch_chunk, 1)
+        target_chunks = torch.chunk(target, args.batch_chunk, 1)
+        for i in range(args.batch_chunk):
+            data_i = data_chunks[i].contiguous()
+            target_i = target_chunks[i].contiguous()
+            memory_i = memories[i]
+            loss, new_memory_i = para_model(data_i, target_i, memory_i)
+            memories.update_memory_stream(stream_index=i, memory=new_memory_i)
+
+            loss = loss.float().mean().type_as(loss) / args.batch_chunk
             loss.backward()
             train_loss += loss.float().item()
+
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()

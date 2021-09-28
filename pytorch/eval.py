@@ -64,7 +64,7 @@ model = model.to(device)
 logging('Evaluating with bsz {} tgt_len {} ext_len {} mem_len {} clamp_len {}'.format(
        args.batch_size, args.tgt_len, args.ext_len, args.mem_len, args.clamp_len))
 
-model.reset_length(args.tgt_len, args.ext_len, args.mem_len)
+model.memory.reset_length(args.tgt_len, args.ext_len, args.mem_len)
 if args.clamp_len > 0:
     model.clamp_len = args.clamp_len
 if args.same_length:

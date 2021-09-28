@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_">
-      <change afterPath="$PROJECT_DIR$/pytorch/feedforward.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pytorch/xlmask.py" afterDir="false" />
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Separated out XlMask and FeedForward modules to separate files">
+      <change afterPath="$PROJECT_DIR$/pytorch/xlmemories.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/xlmemory.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/data_parallel.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,7 +90,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632823634079</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="-Separated out XlMask and FeedForward modules to separate files">
+      <created>1632826105517</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1632826105517</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -113,6 +120,7 @@
     <MESSAGE value="-Cleaned up training script" />
     <MESSAGE value="-Cleaned up training script even more" />
     <MESSAGE value="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_" />
-    <option name="LAST_COMMIT_MESSAGE" value="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_" />
+    <MESSAGE value="-Separated out XlMask and FeedForward modules to separate files" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Separated out XlMask and FeedForward modules to separate files" />
   </component>
 </project>
