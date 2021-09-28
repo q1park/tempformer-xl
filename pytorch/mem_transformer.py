@@ -29,24 +29,6 @@ class PositionalEmbedding(nn.Module):
             return pos_emb[:,None,:]
 
 
-class PositionwiseFF(nn.Module):
-    def __init__(self, d_model, d_inner, dropout):
-        super(PositionwiseFF, self).__init__()
-
-        self.d_model = d_model
-        self.d_inner = d_inner
-        self.dropout = dropout
-
-        self.CoreNet = nn.Sequential(
-            nn.Linear(d_model, d_inner), nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(d_inner, d_model),
-            nn.Dropout(dropout),
-        )
-
-    def forward(self, inp):
-        return self.CoreNet(inp)
-
 class RelMultiHeadAttn(nn.Module):
     def __init__(self, n_head, d_model, d_head, dropout, dropatt=0):
         super(RelMultiHeadAttn, self).__init__()
@@ -132,12 +114,19 @@ class RelMultiHeadAttn(nn.Module):
         w_head_kv = self.kv_net(x)
         return torch.chunk(w_head_kv, 2, dim=-1)
 
+
+
+from adaptiveinput import AdaptiveInput
+from adaptivelogsoftmax import AdaptiveLogSoftmax
+from feedforward import FeedForward
+from xlmask import XlMask
+
 class RelPartialLearnableDecoderLayer(nn.Module):
     def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt):
         super(RelPartialLearnableDecoderLayer, self).__init__()
 
         self.attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, dropatt)
-        self.ff = PositionwiseFF(d_model, d_inner, dropout)
+        self.ff = FeedForward(d_model, d_inner, dropout)
 
         self.norm = nn.ModuleList([
             nn.LayerNorm(d_model),
@@ -154,42 +143,6 @@ class RelPartialLearnableDecoderLayer(nn.Module):
             x + self.ff(x))
         return x
 
-import torch
-from torch import nn
-
-
-class XlMask(nn.Module):
-    """
-    Creates, registers, and applies the attention score mask
-    """
-
-    def __init__(self, tgt_len: int, mem_len: int, same_length: bool):
-        super(XlMask, self).__init__()
-        self.tgt_len = tgt_len
-        self.klen = tgt_len + mem_len
-        self.same_length = same_length
-
-        self.attn_mask = self.make_mask()
-        # self.register_buffer('attn_mask', attn_mask)
-
-    def forward(self, x):
-        # x.shape = (l_q, l_k, 1, 1)
-        mask = self.attn_mask[:, -x.size(1):, None, None]
-        # x.masked_fill_(mask.to(x.device), -float('inf'))
-        x.masked_fill_(mask.to(x.device), -torch.finfo(x.dtype).max)
-        return x
-
-    def make_mask(self):
-        # causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).byte()
-        causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).bool()
-
-        if self.same_length:
-            # causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).byte()
-            causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).bool()
-        return causal_mask
-
-from adaptiveinput import AdaptiveInput
-from adaptivelogsoftmax import AdaptiveLogSoftmax
 
 class MemTransformerLM(nn.Module):
     def __init__(
@@ -247,6 +200,7 @@ class MemTransformerLM(nn.Module):
         self.tgt_len = tgt_len
         self.mem_len = mem_len
         self.ext_len = ext_len
+        self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=self.mask.same_length)
 
     def init_mems(self):
         if self.mem_len > 0:

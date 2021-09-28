@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Cleaned up training script even more">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_">
+      <change afterPath="$PROJECT_DIR$/pytorch/feedforward.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/xlmask.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/utils/data_parallel.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,7 +83,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632780311764</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_">
+      <created>1632823634079</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1632823634079</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -102,6 +112,7 @@
     <MESSAGE value="-Moved memory concatenation outside of the attention module" />
     <MESSAGE value="-Cleaned up training script" />
     <MESSAGE value="-Cleaned up training script even more" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Cleaned up training script even more" />
+    <MESSAGE value="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_" />
+    <option name="LAST_COMMIT_MESSAGE" value="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_" />
   </component>
 </project>

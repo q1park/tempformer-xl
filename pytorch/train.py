@@ -14,7 +14,6 @@ import torch.optim as optim
 from data_utils import get_lm_corpus
 from mem_transformer import MemTransformerLM
 from utils.exp_utils import create_exp_dir
-from utils.data_parallel import BalancedDataParallel
 
 parser = argparse.ArgumentParser(description='PyTorch Transformer Language Model')
 parser.add_argument('--data', type=str, default='../data/wikitext-103',
@@ -70,7 +69,7 @@ parser.add_argument('--max_step', type=int, default=100000,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=60,
                     help='batch size')
-parser.add_argument('--batch_chunk', type=int, default=2,
+parser.add_argument('--batch_chunk', type=int, default=4,
                     help='split batch into chunks to save memory')
 parser.add_argument('--tgt_len', type=int, default=70,
                     help='number of tokens to predict')
