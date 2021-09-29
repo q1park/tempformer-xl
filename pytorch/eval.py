@@ -8,6 +8,7 @@ import torch
 
 from data_utils import get_lm_corpus
 from mem_transformer import MemTransformerLM
+from xlmemories import XlMemories
 from utils.exp_utils import get_logger
 
 parser = argparse.ArgumentParser(description='PyTorch Transformer Language Model')
@@ -61,14 +62,16 @@ with open(os.path.join(args.work_dir, 'model.pt'), 'rb') as f:
 
 model = model.to(device)
 
+
+
 logging('Evaluating with bsz {} tgt_len {} ext_len {} mem_len {} clamp_len {}'.format(
        args.batch_size, args.tgt_len, args.ext_len, args.mem_len, args.clamp_len))
 
-model.memory.reset_length(args.tgt_len, args.ext_len, args.mem_len)
 if args.clamp_len > 0:
-    model.clamp_len = args.clamp_len
+    model.pos_emb.clamp_len = args.clamp_len
 if args.same_length:
-    model.same_length = True
+    model.mask.same_length = True
+    model.mask.attn_mask = model.mask.make_mask()
 
 ###############################################################################
 # Evaluation code
@@ -79,10 +82,19 @@ def evaluate(eval_iter):
     total_len, total_loss = 0, 0.
     start_time = time.time()
     with torch.no_grad():
-        mems = tuple()
+        eval_memories = XlMemories(
+            n_stream=1,
+            n_layer=args.n_layer,
+            tgt_len=args.tgt_len,
+            mem_len=args.mem_len,
+            ext_len=args.ext_len,
+            dtype=next(model.parameters()).dtype
+        )
+
         for idx, (data, target, seq_len) in enumerate(eval_iter):
-            ret = model(data, target, *mems)
-            loss, mems = ret[0], ret[1:]
+            loss, new_eval_memory = model(data, target, eval_memories[0])
+            eval_memories.update_memory_stream(stream_index=0, memory=new_eval_memory)
+
             loss = loss.mean()
             total_loss += seq_len * loss.item()
             total_len += seq_len

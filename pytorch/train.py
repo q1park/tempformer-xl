@@ -208,16 +208,15 @@ def weights_init(m):
             init_bias(m.r_bias)
 
 
-model = MemTransformerLM(ntokens, args.n_layer, args.n_head, args.d_model,
-                         args.d_head, args.d_inner, args.dropout, args.dropatt,
-                         tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
-                         pre_lnorm=args.pre_lnorm, tgt_len=args.tgt_len,
-                         ext_len=args.ext_len, mem_len=args.mem_len, cutoffs=cutoffs,
-                         same_length=args.same_length,clamp_len=args.clamp_len)
+model = MemTransformerLM(
+    ntokens, args.n_layer, args.n_head, args.d_model,
+    args.d_head, args.d_inner, args.dropout, args.dropatt,
+    tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
+    tgt_len=args.tgt_len, ext_len=args.ext_len, mem_len=args.mem_len,
+    cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len
+)
 model.apply(weights_init)
 model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
-
-
 
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.layers.parameters()])
@@ -226,7 +225,6 @@ para_model = model.to(device)
 
 #### optimizer
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
-
 
 #### scheduler
 # here we do not set eta_min to lr_min to be backward compatible

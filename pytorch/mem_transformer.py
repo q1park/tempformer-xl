@@ -11,22 +11,28 @@ import torch.nn.functional as F
 sys.path.append('utils')
 
 class PositionalEmbedding(nn.Module):
-    def __init__(self, demb):
+    def __init__(self, d_embed, clamp_len):
         super(PositionalEmbedding, self).__init__()
+        self.d_embed = d_embed
+        self.clamp_len = clamp_len
 
-        self.demb = demb
-
-        inv_freq = 1 / (10000 ** (torch.arange(0.0, demb, 2.0) / demb))
+        inv_freq = 1 / (10000 ** (torch.arange(0.0, d_embed, 2.0) / d_embed))
         self.register_buffer('inv_freq', inv_freq)
 
-    def forward(self, pos_seq, bsz=None):
+
+    def make_pos_emb(self, klen, device, dtype, bsz=None):
+        pos_seq = torch.arange(klen - 1, -1, -1.0, device=device, dtype=dtype)
+
+        if self.clamp_len > 0:
+            pos_seq.clamp_(max=self.clamp_len)
+
         sinusoid_inp = torch.outer(pos_seq, self.inv_freq)
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
 
         if bsz is not None:
-            return pos_emb[:,None,:].expand(-1, bsz, -1)
+            return pos_emb[:, None, :].expand(-1, bsz, -1)
         else:
-            return pos_emb[:,None,:]
+            return pos_emb[:, None, :]
 
 
 class RelMultiHeadAttn(nn.Module):
@@ -127,11 +133,7 @@ class RelPartialLearnableDecoderLayer(nn.Module):
 
         self.attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, dropatt)
         self.ff = FeedForward(d_model, d_inner, dropout)
-
-        self.norm = nn.ModuleList([
-            nn.LayerNorm(d_model),
-            nn.LayerNorm(d_model)
-        ])
+        self.norm = nn.ModuleList([nn.LayerNorm(d_model),nn.LayerNorm(d_model)])
 
     def forward(self, x, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
         if mems is not None:
@@ -144,38 +146,32 @@ class RelPartialLearnableDecoderLayer(nn.Module):
         return x
 
 from xlmemory import XlMemory
-from xlmemories import XlMemories
 
 class MemTransformerLM(nn.Module):
     def __init__(
             self, n_token, n_layer, n_head, d_model, d_head, d_inner, dropout, dropatt,
-            tie_weight=True, d_embed=None, div_val=1, pre_lnorm=False,
-            tgt_len=None, ext_len=None, mem_len=None, cutoffs=[], same_length=False, clamp_len=-1
+            tie_weight=True, d_embed=None, div_val=1,
+            tgt_len=None, ext_len=None, mem_len=None,
+            cutoffs=[], same_length=False, clamp_len=-1
     ):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
         self.n_layer = n_layer
+        self.n_head = n_head
+        self.d_head = d_head
 
         d_embed = d_model if d_embed is None else d_embed
         self.d_embed = d_embed
         self.d_model = d_model
-        self.n_head = n_head
-        self.d_head = d_head
 
         self.word_emb = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-
-        self.layers = nn.ModuleList()
-
-        for i in range(n_layer):
-            self.layers.append(
-                RelPartialLearnableDecoderLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
-            )
-
+        self.pos_emb = PositionalEmbedding(d_embed=self.d_model, clamp_len=clamp_len)
+        self.layers = nn.ModuleList([
+            RelPartialLearnableDecoderLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
+            for _ in range(n_layer)
+        ])
         self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
-
-        # use adaptive softmax (including standard softmax)
         self.crit = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-
         self.drop = nn.Dropout(dropout)
 
         if tie_weight:
@@ -183,35 +179,22 @@ class MemTransformerLM(nn.Module):
             for i in range(len(self.word_emb.cutoffs) - 1):
                 self.word_emb.tail[i].weight = self.crit.tail[i].weight
 
-        self.same_length = same_length
-        self.clamp_len = clamp_len
-
-        self._create_params()
-
-    def _create_params(self):
-        self.pos_emb = PositionalEmbedding(self.d_model)
         self.r_w_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
         self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
 
     def _forward(self, dec_inp, memory=None):
         qlen, bsz = dec_inp.size()
-
-        word_emb = self.word_emb(dec_inp)
-
-        mlen = memory[0].size(0) if memory is not None else 0
+        mlen = memory[0].size(0)
         klen = mlen + qlen
 
-        hids = []
-        pos_seq = torch.arange(klen-1, -1, -1.0, device=word_emb.device, dtype=word_emb.dtype)
-
-        if self.clamp_len > 0:
-            pos_seq.clamp_(max=self.clamp_len)
-        pos_emb = self.pos_emb(pos_seq)
+        word_emb = self.word_emb(dec_inp)
+        pos_emb = self.pos_emb.make_pos_emb(klen=klen, device=word_emb.device, dtype=word_emb.dtype)
 
         core_out = self.drop(word_emb)
         pos_emb = self.drop(pos_emb)
 
-        hids.append(core_out)
+        hids = [core_out]
+
         for i, layer in enumerate(self.layers):
             core_out = layer(
                 core_out, pos_emb, self.r_w_bias, self.r_r_bias,
@@ -219,11 +202,8 @@ class MemTransformerLM(nn.Module):
             )
             hids.append(core_out)
 
-
         core_out = self.drop(core_out)
-
         memory.update_memory(hids, memory, mlen, qlen)
-
         return core_out, memory
 
     def forward(self, data, target, memory: XlMemory):
