@@ -26,6 +26,9 @@ class XlMemory:
     def __iter__(self):
         return iter(self.memory)
 
+    def size(self, i: int):
+        return self.memory[i].size(1) if len(self.memory[i].size()) > 1 else 0
+
     def update_memory(self, hids, mems, qlen, mlen):
         assert len(hids) == len(mems), 'len(hids) != len(mems)'
 

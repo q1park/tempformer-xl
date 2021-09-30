@@ -14,7 +14,7 @@ class XlLayer(nn.Module):
         super(XlLayer, self).__init__()
 
         self.attn = XlAttention(d_model=d_model, n_head=n_head, d_head=d_head, drop_out=drop_out, drop_att=drop_att)
-        self.ff = FeedForward(d_model, d_inner, drop_out)
+        self.ff = FeedForward(d_in=d_model, d_hidden=d_inner, drop=drop_out)
         self.norm = nn.ModuleList([nn.LayerNorm(d_model),nn.LayerNorm(d_model)])
 
     def forward(self, x, mem: torch.Tensor, p: torch.Tensor, position: nn.Module, mask: nn.Module) -> torch.Tensor:
@@ -24,12 +24,72 @@ class XlLayer(nn.Module):
         x = self.norm[1](x + self.ff(x))
         return x
 
+class Xl(nn.Module):
+    def __init__(
+            self,
+            n_layer: int,
+            d_model: int,
+            n_head: int,
+            d_head: int,
+            d_inner: int,
+            drop_out: float,
+            drop_att: float,
+            tgt_len: int=None,
+            mem_len: int=None,
+            same_length: bool=False,
+            clamp_len: int=-1
+    ):
+        super(Xl, self).__init__()
+
+        self.position = XlPosition(d_model=d_model, n_head=n_head, d_head=d_head, clamp_len=clamp_len)
+        self.layers = nn.ModuleList([
+            XlLayer(
+                d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
+                drop_out=drop_out, drop_att=drop_att
+            )
+            for _ in range(n_layer)
+        ])
+        self.attn_mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
+        self.drop_out = nn.Dropout(drop_out)
+
+    def forward(self, x, memory: XlMemory) -> (torch.Tensor, XlMemory):
+        bsz, qlen, mlen = x.size(0), x.size(1), memory.size(0)
+        klen = mlen + qlen
+
+        p = self.position.wave_grid(klen=klen, device=x.device, dtype=x.dtype)
+        p = self.drop_out(p)
+
+        hids = [x]
+
+        for i, layer in enumerate(self.layers):
+            x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
+            hids.append(x)
+
+        memory.update_memory(hids, memory, mlen, qlen)
+        x = self.drop_out(x)
+
+        return x, memory
+
 class MemTransformerLM(nn.Module):
     def __init__(
-            self, n_token, n_layer, n_head, d_model, d_head, d_inner, dropout, dropatt,
-            tie_weight=True, d_embed=None, div_val=1,
-            tgt_len=None, ext_len=None, mem_len=None,
-            cutoffs=[], same_length=False, clamp_len=-1
+            self,
+            n_token: int,
+            n_layer: int,
+            n_head: int,
+            d_model: int,
+            d_head: int,
+            d_inner: int,
+            drop_out: float,
+            drop_att: float,
+            tie_weight: bool=True,
+            d_embed: int=None,
+            div_val: int=1,
+            tgt_len: int=None,
+            ext_len: int=None,
+            mem_len: int=None,
+            cutoffs: list=[],
+            same_length: bool=False,
+            clamp_len: int=-1
     ):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
@@ -41,52 +101,32 @@ class MemTransformerLM(nn.Module):
         self.d_embed = d_embed
         self.d_model = d_model
 
-        self.word_emb = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-        self.position = XlPosition(d_model=d_model, n_head=n_head, d_head=d_head, clamp_len=clamp_len)
-        self.layers = nn.ModuleList([
-            XlLayer(d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner, drop_out=dropout, drop_att=dropatt)
-            for _ in range(n_layer)
-        ])
-        self.attn_mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
-        self.crit = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-        self.drop = nn.Dropout(dropout)
+        self.embedder = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
+        self.transformer = Xl(
+            n_layer=n_layer, d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
+            drop_out=drop_out, drop_att=drop_att, tgt_len=tgt_len, mem_len=mem_len,
+            same_length=same_length, clamp_len=clamp_len
+        )
+        self.predictor = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
+        self.drop_out = nn.Dropout(drop_out)
 
         if tie_weight:
-            self.word_emb.head.weight = self.crit.head.weight
-            for i in range(len(self.word_emb.cutoffs) - 1):
-                self.word_emb.tail[i].weight = self.crit.tail[i].weight
+            self.embedder.head.weight = self.predictor.head.weight
+            for i in range(len(self.embedder.cutoffs) - 1):
+                self.embedder.tail[i].weight = self.predictor.tail[i].weight
 
-    def forward(self, data, target, memory: XlMemory):
-        tgt_len = target.size(1)
+    def forward(self, x, y, memory: XlMemory):
+        x = self.embedder(x)
+        x = self.drop_out(x)
 
-        word_emb = self.word_emb(data)
-        core_out = self.drop(word_emb)
+        x, new_memory = self.transformer(x=x, memory=memory)
 
-        core_out, new_mems = self.forward_layers(x=core_out, memory=memory)
+        output = self.predictor(x.view(-1, x.size(-1)), y.view(-1))
+        loss = -output.output.view(y.size(1), -1)
 
-        output = self.crit(core_out.view(-1, core_out.size(-1)), target.view(-1))
-        loss = -output.output.view(tgt_len, -1)
+        return loss, new_memory
 
-        return loss, new_mems
 
-    def forward_layers(self, x, memory: XlMemory):
-        bsz, qlen = x.size(0), x.size(1)
-        mlen = memory[0].size(1) if len(memory[0].size()) > 1 else 0
-        klen = mlen + qlen
-
-        p = self.position.wave_grid(klen=klen, device=x.device, dtype=x.dtype)
-        p = self.drop(p)
-
-        hids = [x]
-
-        for i, layer in enumerate(self.layers):
-            x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
-            hids.append(x)
-
-        memory.update_memory(hids, memory, mlen, qlen)
-        x = self.drop(x)
-
-        return x, memory
 
 if __name__ == '__main__':
     import argparse
@@ -125,12 +165,12 @@ if __name__ == '__main__':
     for div_val in [1, 2]:
         for d_embed in [200, 100]:
             model = MemTransformerLM(args.n_token, args.n_layer, args.n_head,
-                            args.d_model, args.d_head, args.d_inner, args.dropout,
-                            dropatt=args.dropout, tie_weight=True, 
-                            d_embed=d_embed, div_val=div_val, 
-                            tie_projs=tie_projs, pre_lnorm=True,
-                            tgt_len=tgt_len, ext_len=ext_len, mem_len=mem_len, 
-                            cutoffs=cutoffs).to(device)
+                                     args.d_model, args.d_head, args.d_inner, args.dropout,
+                                     drop_att=args.dropout, tie_weight=True,
+                                     d_embed=d_embed, div_val=div_val,
+                                     tie_projs=tie_projs, pre_lnorm=True,
+                                     tgt_len=tgt_len, ext_len=ext_len, mem_len=mem_len,
+                                     cutoffs=cutoffs).to(device)
 
             print(sum(p.numel() for p in model.parameters()))
 

@@ -212,10 +212,10 @@ model = MemTransformerLM(
     cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len
 )
 model.apply(weights_init)
-model.word_emb.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
+model.embedder.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
-args.n_nonemb_param = sum([p.nelement() for p in model.layers.parameters()])
+args.n_nonemb_param = sum([p.nelement() for p in model.transformer.layers.parameters()])
 
 para_model = model.to(device)
 
