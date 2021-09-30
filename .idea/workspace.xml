@@ -2,11 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added nn.Module object XlMemories to handle multiple XlMemory objects for multiple training streams">
+      <change afterPath="$PROJECT_DIR$/pytorch/xlattention.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/data_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlmask.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmask.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlmemory.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmemory.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

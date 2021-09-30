@@ -29,123 +29,36 @@ class PositionalEmbedding(nn.Module):
         sinusoid_inp = torch.outer(pos_seq, self.inv_freq)
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
 
-        if bsz is not None:
-            return pos_emb[:, None, :].expand(-1, bsz, -1)
-        else:
-            return pos_emb[:, None, :]
-
-
-class RelMultiHeadAttn(nn.Module):
-    def __init__(self, n_head, d_model, d_head, dropout, dropatt=0):
-        super(RelMultiHeadAttn, self).__init__()
-
-        self.n_head = n_head
-        self.d_model = d_model
-        self.d_head = d_head
-        self.dropout = dropout
-
-        self.q_net = nn.Linear(d_model, n_head * d_head, bias=False)
-        self.kv_net = nn.Linear(d_model, 2 * n_head * d_head, bias=False)
-
-        self.drop = nn.Dropout(dropout)
-        self.dropatt = nn.Dropout(dropatt)
-        self.o_net = nn.Linear(n_head * d_head, d_model, bias=False)
-        self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
-
-        self.scale = 1 / (d_head ** 0.5)
-
-    def forward(self, w, r, r_w_bias, r_r_bias, qlen, attn_mask=None):
-        klen, rlen, bsz = w.size(0), r.size(0), w.size(1)
-
-        w_head_q = self._forward_Q(w[-qlen:])
-        w_head_k, w_head_v = self._forward_KV(w)
-        r_head_k = self.r_net(r)
-
-        w_head_q = w_head_q.view(qlen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
-        w_head_k = w_head_k.view(klen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
-        w_head_v = w_head_v.view(klen, bsz, self.n_head, self.d_head)  # qlen x bsz x n_head x d_head
-        r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)  # qlen x n_head x d_head
-
-        #### compute attention score
-        rw_head_q = w_head_q + r_w_bias  # qlen x bsz x n_head x d_head
-        AC = torch.einsum('ibnd,jbnd->ijbn', (rw_head_q, w_head_k))  # qlen x klen x bsz x n_head
-
-        rr_head_q = w_head_q + r_r_bias
-        BD = torch.einsum('ibnd,jnd->ijbn', (rr_head_q, r_head_k))  # qlen x klen x bsz x n_head
-        BD = self._rel_shift(BD)
-
-        # [qlen x klen x bsz x n_head]
-        attn_score = AC + BD
-        attn_score.mul_(self.scale)
-
-        #### compute attention probability
-        if attn_mask is not None:
-            attn_score = attn_mask(attn_score)
-
-        # [qlen x klen x bsz x n_head]
-        attn_prob = F.softmax(attn_score, dim=1)
-        attn_prob = self.dropatt(attn_prob)
-
-        #### compute attention vector
-        attn_vec = torch.einsum('ijbn,jbnd->ibnd', (attn_prob, w_head_v))
-
-        # [qlen x bsz x n_head x d_head]
-        attn_vec = attn_vec.contiguous().view(
-            attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head)
-
-        ##### linear projection
-        attn_out = self.o_net(attn_vec)
-        attn_out = self.drop(attn_out)
-
-        return attn_out
-
-    def _rel_shift(self, x, zero_triu=False):
-        zero_pad = torch.zeros((x.size(0), 1, *x.size()[2:]), device=x.device, dtype=x.dtype)
-
-        x_padded = torch.cat([zero_pad, x], dim=1)
-        x_padded = x_padded.view(x.size(1) + 1, x.size(0), *x.size()[2:])
-
-        x = x_padded[1:].view_as(x)
-
-        if zero_triu:
-            ones = torch.ones((x.size(0), x.size(1)))
-            x = x * torch.tril(ones, x.size(1) - x.size(0))[:,:,None,None]
-
-        return x
-
-    def _forward_Q(self, x):
-        return self.q_net(x)
-
-    def _forward_KV(self, x):
-        w_head_kv = self.kv_net(x)
-        return torch.chunk(w_head_kv, 2, dim=-1)
-
+        return pos_emb[None, :, :]
 
 
 from adaptiveinput import AdaptiveInput
 from adaptivelogsoftmax import AdaptiveLogSoftmax
 from feedforward import FeedForward
+from xlattention import XlAttention
 from xlmask import XlMask
 
-class RelPartialLearnableDecoderLayer(nn.Module):
-    def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt):
-        super(RelPartialLearnableDecoderLayer, self).__init__()
 
-        self.attn = RelMultiHeadAttn(n_head, d_model, d_head, dropout, dropatt)
+class XlLayer(nn.Module):
+    def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt):
+        super(XlLayer, self).__init__()
+
+        self.attn = XlAttention(n_head, d_model, d_head, dropout, dropatt)
         self.ff = FeedForward(d_model, d_inner, dropout)
         self.norm = nn.ModuleList([nn.LayerNorm(d_model),nn.LayerNorm(d_model)])
 
     def forward(self, x, r, r_w_bias, r_r_bias, dec_attn_mask=None, mems=None):
-        if mems is not None:
-            x_mem = torch.cat([mems.to(x.device), x], dim=0)
-
+        x_mem = torch.cat([mems.to(x.device), x], dim=1)
         x = self.norm[0](
-            x + self.attn(x_mem, r, r_w_bias, r_r_bias, qlen=x.size(0), attn_mask=dec_attn_mask))
+            x + self.attn(x_mem, r, r_w_bias, r_r_bias, qlen=x.size(1), attn_mask=dec_attn_mask))
         x = self.norm[1](
             x + self.ff(x))
         return x
 
 from xlmemory import XlMemory
+
+def swap_0_1(x):
+    return torch.einsum('ib... -> bi...', x)
 
 class MemTransformerLM(nn.Module):
     def __init__(
@@ -167,7 +80,7 @@ class MemTransformerLM(nn.Module):
         self.word_emb = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
         self.pos_emb = PositionalEmbedding(d_embed=self.d_model, clamp_len=clamp_len)
         self.layers = nn.ModuleList([
-            RelPartialLearnableDecoderLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
+            XlLayer(n_head, d_model, d_head, d_inner, dropout, dropatt)
             for _ in range(n_layer)
         ])
         self.mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
@@ -183,14 +96,16 @@ class MemTransformerLM(nn.Module):
         self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
 
     def _forward(self, dec_inp, memory=None):
-        qlen, bsz = dec_inp.size()
-        mlen = memory[0].size(0)
+        dec_inp = swap_0_1(dec_inp).contiguous()
+
+        bsz, qlen = dec_inp.size()
+        mlen = memory[0].size(1) if len(memory[0].size())>1 else 0
         klen = mlen + qlen
 
         word_emb = self.word_emb(dec_inp)
-        pos_emb = self.pos_emb.make_pos_emb(klen=klen, device=word_emb.device, dtype=word_emb.dtype)
-
         core_out = self.drop(word_emb)
+
+        pos_emb = self.pos_emb.make_pos_emb(klen=klen, device=word_emb.device, dtype=word_emb.dtype)
         pos_emb = self.drop(pos_emb)
 
         hids = [core_out]
@@ -200,10 +115,12 @@ class MemTransformerLM(nn.Module):
                 core_out, pos_emb, self.r_w_bias, self.r_r_bias,
                 dec_attn_mask=self.mask, mems=memory[i]
             )
+
             hids.append(core_out)
+        memory.update_memory(hids, memory, mlen, qlen)
 
         core_out = self.drop(core_out)
-        memory.update_memory(hids, memory, mlen, qlen)
+        core_out = swap_0_1(core_out).contiguous()
         return core_out, memory
 
     def forward(self, data, target, memory: XlMemory):

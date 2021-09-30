@@ -17,17 +17,15 @@ class XlMask(nn.Module):
         # self.register_buffer('attn_mask', attn_mask)
 
     def forward(self, x):
-        # x.shape = (l_q, l_k, 1, 1)
-        mask = self.attn_mask[-x.size(0):, -x.size(1):, None, None]
+        # x.shape = (1, l_q, l_k, 1)
+        mask = self.attn_mask[None, -x.size(1):, -x.size(2):, None]
         # x.masked_fill_(mask.to(x.device), -float('inf'))
         x.masked_fill_(mask.to(x.device), -torch.finfo(x.dtype).max)
         return x
 
     def make_mask(self):
-        # causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).byte()
         causal_mask = torch.ones(self.tgt_len, self.klen).triu_(self.klen - self.tgt_len + 1).bool()
 
         if self.same_length:
-            # causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).byte()
             causal_mask = causal_mask + torch.ones(self.tgt_len, self.klen).tril_(0).bool()
         return causal_mask
