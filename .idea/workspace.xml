@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added nn.Module object XlMemories to handle multiple XlMemory objects for multiple training streams">
-      <change afterPath="$PROJECT_DIR$/pytorch/xlattention.py" afterDir="false" />
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)&#10;&#10;-Added &quot;swap&quot; function to perform gradual changover to batch-first&#10;-Cleared XlAttention, XlLayer, and XlMemory as batch-first error-free">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/data_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/xlmask.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmask.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/xlmemory.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmemory.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -103,7 +101,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632869919161</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)&#10;&#10;-Added &quot;swap&quot; function to perform gradual changover to batch-first&#10;-Cleared XlAttention, XlLayer, and XlMemory as batch-first error-free">
+      <created>1632961318495</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1632961318495</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -128,6 +133,7 @@
     <MESSAGE value="MIGRATED TO PYTORCH 1.8.1&#10;&#10;-Created nn.Module to handle attention masked_fill_" />
     <MESSAGE value="-Separated out XlMask and FeedForward modules to separate files" />
     <MESSAGE value="-Added nn.Module object XlMemories to handle multiple XlMemory objects for multiple training streams" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Added nn.Module object XlMemories to handle multiple XlMemory objects for multiple training streams" />
+    <MESSAGE value="CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)&#10;&#10;-Added &quot;swap&quot; function to perform gradual changover to batch-first&#10;-Cleared XlAttention, XlLayer, and XlMemory as batch-first error-free" />
+    <option name="LAST_COMMIT_MESSAGE" value="CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)&#10;&#10;-Added &quot;swap&quot; function to perform gradual changover to batch-first&#10;-Cleared XlAttention, XlLayer, and XlMemory as batch-first error-free" />
   </component>
 </project>

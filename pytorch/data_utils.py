@@ -31,7 +31,9 @@ class LMOrderedIterator(object):
         self.n_batch = (self.n_step + self.bptt - 1) // self.bptt
 
     def get_batch(self, i, bptt=None):
-        if bptt is None: bptt = self.bptt
+        if bptt is None:
+            bptt = self.bptt
+
         seq_len = min(bptt, self.data.size(0) - 1 - i)
 
         end_idx = i + seq_len
@@ -45,18 +47,6 @@ class LMOrderedIterator(object):
     def get_fixlen_iter(self, start=0):
         for i in range(start, self.data.size(0) - 1, self.bptt):
             yield self.get_batch(i)
-
-    def get_varlen_iter(self, start=0, std=5, min_len=5, max_deviation=3):
-        max_len = self.bptt + max_deviation * std
-        i = start
-        while True:
-            bptt = self.bptt if np.random.random() < 0.95 else self.bptt / 2.
-            bptt = min(max_len, max(min_len, int(np.random.normal(bptt, std))))
-            data, target, seq_len = self.get_batch(i, bptt)
-            i += seq_len
-            yield data, target, seq_len
-            if i >= self.data.size(0) - 2:
-                break
 
     def __iter__(self):
         return self.get_fixlen_iter()

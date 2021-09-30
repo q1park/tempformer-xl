@@ -31,13 +31,12 @@ class PositionalEmbedding(nn.Module):
 
         return pos_emb[None, :, :]
 
-
 from adaptiveinput import AdaptiveInput
 from adaptivelogsoftmax import AdaptiveLogSoftmax
 from feedforward import FeedForward
 from xlattention import XlAttention
 from xlmask import XlMask
-
+from xlmemory import XlMemory
 
 class XlLayer(nn.Module):
     def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt):
@@ -54,8 +53,6 @@ class XlLayer(nn.Module):
         x = self.norm[1](
             x + self.ff(x))
         return x
-
-from xlmemory import XlMemory
 
 def swap_0_1(x):
     return torch.einsum('ib... -> bi...', x)
@@ -95,14 +92,12 @@ class MemTransformerLM(nn.Module):
         self.r_w_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
         self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
 
-    def _forward(self, dec_inp, memory=None):
-        dec_inp = swap_0_1(dec_inp).contiguous()
-
-        bsz, qlen = dec_inp.size()
+    def _forward(self, data, memory=None):
+        bsz, qlen = data.size()
         mlen = memory[0].size(1) if len(memory[0].size())>1 else 0
         klen = mlen + qlen
 
-        word_emb = self.word_emb(dec_inp)
+        word_emb = self.word_emb(data)
         core_out = self.drop(word_emb)
 
         pos_emb = self.pos_emb.make_pos_emb(klen=klen, device=word_emb.device, dtype=word_emb.dtype)
@@ -120,14 +115,17 @@ class MemTransformerLM(nn.Module):
         memory.update_memory(hids, memory, mlen, qlen)
 
         core_out = self.drop(core_out)
-        core_out = swap_0_1(core_out).contiguous()
+
         return core_out, memory
 
     def forward(self, data, target, memory: XlMemory):
-        tgt_len = target.size(0)
+        data = swap_0_1(data).contiguous()
+        target = swap_0_1(target).contiguous()
+
+        tgt_len = target.size(1)
         hidden, new_mems = self._forward(data, memory=memory)
 
-        pred_hid = hidden[-tgt_len:]
+        pred_hid = hidden[:, -tgt_len:]
         output = self.crit(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))
         loss = -output.output.view(tgt_len, -1)
 
