@@ -1,7 +1,4 @@
 import torch
-from torch import nn
-from typing import List
-from copy import deepcopy
 
 class XlMemory:
     def __init__(self, n_layer: int, tgt_len: int, mem_len: int, ext_len: int, dtype: torch.dtype):

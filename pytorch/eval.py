@@ -2,12 +2,11 @@
 import argparse
 import time
 import math
-import os, sys
+import os
 
 import torch
 
-from data_utils import get_lm_corpus
-from mem_transformer import MemTransformerLM
+from pytorch.data_utils import get_lm_corpus
 from xlmemories import XlMemories
 from utils.exp_utils import get_logger
 
@@ -68,12 +67,12 @@ logging('Evaluating with bsz {} tgt_len {} ext_len {} mem_len {} clamp_len {}'.f
        args.batch_size, args.tgt_len, args.ext_len, args.mem_len, args.clamp_len))
 
 if args.clamp_len > 0:
-    model.pos_emb.clamp_len = args.clamp_len
+    model.position.clamp_len = args.clamp_len
 if args.same_length:
-    model.mask.same_length = True
-    model.mask.tgt_len = args.tgt_len
-    model.mask.klen = args.tgt_len+args.mem_len
-    model.mask.attn_mask = model.mask.make_mask()
+    model.attn_mask.same_length = True
+    model.attn_mask.tgt_len = args.tgt_len
+    model.attn_mask.klen = args.tgt_len + args.mem_len
+    model.attn_mask.attn_mask = model.attn_mask.make_mask()
 
 ###############################################################################
 # Evaluation code

@@ -3,13 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class XlAttention(nn.Module):
-    def __init__(self, d_model, n_head, d_head, dropout, dropatt=0):
+    def __init__(self, d_model: int, n_head: int, d_head: int, drop_out: float, drop_att: float=0.):
         super(XlAttention, self).__init__()
 
         self.n_head = n_head
         self.d_model = d_model
         self.d_head = d_head
-        self.dropout = dropout
 
         self.q_net = nn.Linear(d_model, n_head * d_head, bias=False)
         self.kv_net = nn.Linear(d_model, 2 * n_head * d_head, bias=False)
@@ -17,12 +16,12 @@ class XlAttention(nn.Module):
         self.o_net = nn.Linear(n_head * d_head, d_model, bias=False)
         self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
 
-        self.drop = nn.Dropout(dropout)
-        self.dropatt = nn.Dropout(dropatt)
+        self.drop_out = nn.Dropout(drop_out)
+        self.drop_att = nn.Dropout(drop_att)
 
         self.scale = 1 / (d_head ** 0.5)
 
-    def forward(self, w, r, r_w_bias, r_r_bias, qlen, attn_mask=None):
+    def forward(self, w, r, position, qlen, attn_mask=None):
         bsz, klen, rlen  = w.size(0), w.size(1), r.size(1)
 
         w_head_q = self._forward_Q(w[:, -qlen:])
@@ -35,10 +34,10 @@ class XlAttention(nn.Module):
         r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)  # qlen x n_head x d_head
 
         #### compute attention score
-        rw_head_q = w_head_q + r_w_bias  # qlen x bsz x n_head x d_head
+        rw_head_q = w_head_q + position.bias['w']  # qlen x bsz x n_head x d_head
         AC = torch.einsum('bind,bjnd->bijn', (rw_head_q, w_head_k))  # qlen x klen x bsz x n_head
 
-        rr_head_q = w_head_q + r_r_bias
+        rr_head_q = w_head_q + position.bias['r']
         BD = torch.einsum('bind,jnd->bijn', (rr_head_q, r_head_k))  # qlen x klen x bsz x n_head
 
         attn_score = AC + self._rel_shift(BD) # [qlen x klen x bsz x n_head]
@@ -47,7 +46,7 @@ class XlAttention(nn.Module):
         #### compute attention probability
         attn_score = attn_mask(attn_score)
         attn_prob = F.softmax(attn_score, dim=2) # [qlen x klen x bsz x n_head]
-        attn_prob = self.dropatt(attn_prob)
+        attn_prob = self.drop_att(attn_prob)
 
         #### compute attention vector
         attn_vec = torch.einsum('bijn,bjnd->bind', (attn_prob, w_head_v))
@@ -58,11 +57,11 @@ class XlAttention(nn.Module):
 
         ##### linear projection
         attn_out = self.o_net(attn_vec)
-        attn_out = self.drop(attn_out)
+        attn_out = self.drop_out(attn_out)
 
         return attn_out
 
-    def _rel_shift(self, x, zero_triu=False):
+    def _rel_shift(self, x, zero_triu: bool=False):
         zero_pad = torch.zeros((x.size(0), x.size(1), 1, x.size(3)), device=x.device, dtype=x.dtype)
 
         x_padded = torch.cat([zero_pad, x], dim=2)

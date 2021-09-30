@@ -1,5 +1,5 @@
 import torch
-from torch import nn
+import torch.nn as nn
 
 from xlmemory import XlMemory
 

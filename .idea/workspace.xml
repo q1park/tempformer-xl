@@ -1,29 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="FINISHED CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)!!!">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/transformer-xl.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/transformer-xl.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Cleared XlPosition module">
+      <change afterPath="$PROJECT_DIR$/pytorch/xlposition.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/getdata.sh" beforeDir="false" afterPath="$PROJECT_DIR$/getdata.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/adaptiveinput.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptiveinput.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/data_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/feedforward.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/feedforward.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/exp_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/utils/exp_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/utils/vocabulary.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/utils/vocabulary.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/xlattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlattention.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/xlmask.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmask.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/xlmemories.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmemories.py" afterDir="false" />
@@ -51,6 +34,10 @@
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/pytorch" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\dev\tempformer-xl\pytorch" />
+      <recent name="C:\dev\tempformer-xl\pytorch\utils" />
     </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -139,7 +126,14 @@
       <option name="project" value="LOCAL" />
       <updated>1632965794293</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="-Cleared XlPosition module">
+      <created>1633011911364</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1633011911364</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -166,6 +160,7 @@
     <MESSAGE value="-Added nn.Module object XlMemories to handle multiple XlMemory objects for multiple training streams" />
     <MESSAGE value="CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)&#10;&#10;-Added &quot;swap&quot; function to perform gradual changover to batch-first&#10;-Cleared XlAttention, XlLayer, and XlMemory as batch-first error-free" />
     <MESSAGE value="FINISHED CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)!!!" />
-    <option name="LAST_COMMIT_MESSAGE" value="FINISHED CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)!!!" />
+    <MESSAGE value="-Cleared XlPosition module" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Cleared XlPosition module" />
   </component>
 </project>

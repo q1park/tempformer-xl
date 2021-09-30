@@ -2,7 +2,7 @@
 import argparse
 import time
 import math
-import os, sys
+import os
 import itertools
 
 import numpy as np
