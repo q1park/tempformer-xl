@@ -7,7 +7,12 @@ class XlMask(nn.Module):
     Creates, registers, and applies the attention score mask
     """
 
-    def __init__(self, tgt_len: int, mem_len: int, same_length: bool):
+    def __init__(
+            self,
+            tgt_len: int,
+            mem_len: int,
+            same_length: bool
+    ):
         super(XlMask, self).__init__()
         self.tgt_len = tgt_len
         self.klen = tgt_len + mem_len

@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from typing import List
 from collections import namedtuple
 from torch.nn import Sequential, ModuleList, Linear, Module
 
@@ -8,7 +8,15 @@ _ASMoutput = namedtuple('ASMoutput', ['output', 'loss'])
 
 
 class AdaptiveLogSoftmax(Module):
-    def __init__(self, d_model, n_classes, cutoffs, div_value=4., head_bias=True, tail_drop=0.5):
+    def __init__(
+            self,
+            d_model: int,
+            n_classes: int,
+            cutoffs: List[int],
+            div_value=4.,
+            head_bias=True,
+            tail_drop=0.5
+    ):
         super(AdaptiveLogSoftmax, self).__init__()
 
         cutoffs = list(cutoffs)

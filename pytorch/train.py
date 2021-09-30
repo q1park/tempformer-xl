@@ -197,15 +197,11 @@ def weights_init(m):
             nn.init.normal_(m.weight, 1.0, args.init_std)
         if hasattr(m, 'bias') and m.bias is not None:
             init_bias(m.bias)
-    elif classname.find('TransformerLM') != -1:
-        if hasattr(m, 'r_emb'):
-            init_weight(m.r_emb)
-        if hasattr(m, 'r_w_bias'):
-            init_weight(m.r_w_bias)
-        if hasattr(m, 'r_r_bias'):
-            init_weight(m.r_r_bias)
-        if hasattr(m, 'r_bias'):
-            init_bias(m.r_bias)
+    elif classname.find('XlPosition') != -1:
+        if hasattr(m.bias, 'w'):
+            init_weight(m.bias['w'])
+        if hasattr(m.bias, 'r'):
+            init_weight(m.bias['r'])
 
 
 model = MemTransformerLM(

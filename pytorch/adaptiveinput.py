@@ -1,8 +1,16 @@
 import torch.nn as nn
-
+from typing import List
 
 class AdaptiveInput(nn.Module):
-    def __init__(self, d_model, n_classes, cutoffs=None, div_value=2.0, head_bias=False, tail_drop=0.5):
+    def __init__(
+            self,
+            d_model: int,
+            n_classes: int,
+            cutoffs: List[int]=None,
+            div_value: float=2.0,
+            head_bias: bool=False,
+            tail_drop: float=0.5
+    ):
         super(AdaptiveInput, self).__init__()
         if not cutoffs:
             cutoffs = [5000, 10000]
@@ -45,12 +53,12 @@ class AdaptiveInput(nn.Module):
             # )
             # self.tail.append(projection)
 
-    def forward(self, input):
+    def forward(self, x):
         used_rows = 0
-        input_size = list(input.size())
+        x_size = list(x.size())
 
-        output = input.new_zeros([input.size(0) * input.size(1)] + [self.d_model]).float()
-        input = input.view(-1)
+        output = x.new_zeros([x.size(0) * x.size(1)] + [self.d_model]).float()
+        x = x.view(-1)
 
         cutoff_values = [0] + self.cutoffs
         for i in range(len(cutoff_values) - 1):
@@ -58,14 +66,14 @@ class AdaptiveInput(nn.Module):
             low_idx = cutoff_values[i]
             high_idx = cutoff_values[i + 1]
 
-            input_mask = (input >= low_idx) & (input < high_idx)
-            row_indices = input_mask.nonzero().squeeze()
+            x_mask = (x >= low_idx) & (x < high_idx)
+            row_indices = x_mask.nonzero().squeeze()
 
             if row_indices.numel() == 0:
                 continue
-            out = self.head(input[input_mask] - low_idx) if i == 0 else self.tail[i - 1](input[input_mask] - low_idx)
+            out = self.head(x[x_mask] - low_idx) if i == 0 else self.tail[i - 1](x[x_mask] - low_idx)
             output.index_copy_(0, row_indices, out)
             used_rows += row_indices.numel()
 
-        return output.view(input_size[0], input_size[1], -1)
+        return output.view(x_size[0], x_size[1], -1)
 

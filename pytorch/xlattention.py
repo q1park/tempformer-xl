@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class XlAttention(nn.Module):
-    def __init__(self, n_head, d_model, d_head, dropout, dropatt=0):
+    def __init__(self, d_model, n_head, d_head, dropout, dropatt=0):
         super(XlAttention, self).__init__()
 
         self.n_head = n_head

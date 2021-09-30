@@ -4,7 +4,14 @@ from torch import nn
 from xlmemory import XlMemory
 
 class XlMemories(nn.Module):
-    def __init__(self, n_stream: int, n_layer: int, tgt_len: int, mem_len: int, ext_len: int, dtype: torch.dtype):
+    def __init__(
+            self, n_stream: int,
+            n_layer: int,
+            tgt_len: int,
+            mem_len: int,
+            ext_len: int,
+            dtype: torch.dtype
+    ):
         assert mem_len >= tgt_len, 'l_k !>= l_q'
         super(XlMemories, self).__init__()
 
