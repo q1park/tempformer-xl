@@ -53,9 +53,9 @@ class XlLayer(nn.Module):
         x = self.norm[1](
             x + self.ff(x))
         return x
-
-def swap_0_1(x):
-    return torch.einsum('ib... -> bi...', x)
+#
+# def swap_0_1(x):
+#     return torch.einsum('ib... -> bi...', x)
 
 class MemTransformerLM(nn.Module):
     def __init__(
@@ -119,8 +119,8 @@ class MemTransformerLM(nn.Module):
         return core_out, memory
 
     def forward(self, data, target, memory: XlMemory):
-        data = swap_0_1(data).contiguous()
-        target = swap_0_1(target).contiguous()
+        # data = swap_0_1(data).contiguous()
+        # target = swap_0_1(target).contiguous()
 
         tgt_len = target.size(1)
         hidden, new_mems = self._forward(data, memory=memory)

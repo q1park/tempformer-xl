@@ -307,8 +307,8 @@ def train():
     for batch, (data, target, seq_len) in enumerate(train_iter):
         model.zero_grad()
 
-        data_chunks = torch.chunk(data, args.batch_chunk, 1)
-        target_chunks = torch.chunk(target, args.batch_chunk, 1)
+        data_chunks = torch.chunk(data, args.batch_chunk, 0)
+        target_chunks = torch.chunk(target, args.batch_chunk, 0)
         for i in range(args.batch_chunk):
             data_i = data_chunks[i].contiguous()
             target_i = target_chunks[i].contiguous()

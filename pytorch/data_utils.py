@@ -25,7 +25,7 @@ class LMOrderedIterator(object):
         data = data.narrow(0, 0, self.n_step * bsz)
 
         # Evenly divide the data across the bsz batches.
-        self.data = data.view(bsz, -1).t().contiguous().to(device)
+        self.data = data.view(bsz, -1).contiguous().to(device)
 
         # Number of mini-batches
         self.n_batch = (self.n_step + self.bptt - 1) // self.bptt
@@ -34,18 +34,18 @@ class LMOrderedIterator(object):
         if bptt is None:
             bptt = self.bptt
 
-        seq_len = min(bptt, self.data.size(0) - 1 - i)
+        seq_len = min(bptt, self.data.size(1) - 1 - i)
 
         end_idx = i + seq_len
         beg_idx = max(0, i - self.ext_len)
 
-        data = self.data[beg_idx:end_idx]
-        target = self.data[i+1:i+1+seq_len]
+        data = self.data[:, beg_idx:end_idx]
+        target = self.data[:, i+1:i+1+seq_len]
 
         return data, target, seq_len
 
     def get_fixlen_iter(self, start=0):
-        for i in range(start, self.data.size(0) - 1, self.bptt):
+        for i in range(start, self.data.size(1) - 1, self.bptt):
             yield self.get_batch(i)
 
     def __iter__(self):
