@@ -39,8 +39,8 @@ class LMOrderedIterator(object):
         end_idx = i + seq_len
         beg_idx = max(0, i - self.ext_len)
 
-        data = self.data[:, beg_idx:end_idx]
-        target = self.data[:, i+1:i+1+seq_len]
+        data = self.data[:, beg_idx:end_idx].contiguous()
+        target = self.data[:, i+1:i+1+seq_len].contiguous()
 
         return data, target, seq_len
 

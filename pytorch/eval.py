@@ -71,6 +71,8 @@ if args.clamp_len > 0:
     model.pos_emb.clamp_len = args.clamp_len
 if args.same_length:
     model.mask.same_length = True
+    model.mask.tgt_len = args.tgt_len
+    model.mask.klen = args.tgt_len+args.mem_len
     model.mask.attn_mask = model.mask.make_mask()
 
 ###############################################################################
@@ -84,7 +86,7 @@ def evaluate(eval_iter):
     with torch.no_grad():
         eval_memories = XlMemories(
             n_stream=1,
-            n_layer=args.n_layer,
+            n_layer=model.n_layer,
             tgt_len=args.tgt_len,
             mem_len=args.mem_len,
             ext_len=args.ext_len,

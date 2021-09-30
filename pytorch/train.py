@@ -72,7 +72,7 @@ parser.add_argument('--max_step', type=int, default=100000,
                     help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=60,
                     help='batch size')
-parser.add_argument('--batch_chunk', type=int, default=4,
+parser.add_argument('--batch_chunk', type=int, default=6,
                     help='split batch into chunks to save memory')
 parser.add_argument('--tgt_len', type=int, default=70,
                     help='number of tokens to predict')
@@ -310,8 +310,8 @@ def train():
         data_chunks = torch.chunk(data, args.batch_chunk, 0)
         target_chunks = torch.chunk(target, args.batch_chunk, 0)
         for i in range(args.batch_chunk):
-            data_i = data_chunks[i].contiguous()
-            target_i = target_chunks[i].contiguous()
+            data_i = data_chunks[i]
+            target_i = target_chunks[i]
             memory_i = memories[i]
             loss, new_memory_i = para_model(data_i, target_i, memory_i)
             memories.update_memory_stream(stream_index=i, memory=new_memory_i)
