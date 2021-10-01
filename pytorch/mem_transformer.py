@@ -9,6 +9,63 @@ from xlmask import XlMask
 from xlmemory import XlMemory
 from xlposition import XlPosition
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+class Fourier(nn.Module):
+    def __init__(self, tgt_len: int, mem_len: int, dropout=0.1, same_length=True):
+        super(Fourier, self).__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.same_length = same_length
+
+        self.ft_matrix = self.init_ft_matrix(qlen=tgt_len, klen=tgt_len + mem_len)
+
+    def init_ft_matrix(self, qlen, klen):
+        flen = klen - qlen + 1
+        ft_matrix = torch.outer(torch.arange(0, qlen), torch.arange(0, flen))
+        ft_matrix = torch.exp(2 * np.pi * 1j * ft_matrix / flen) / np.sqrt(flen)
+        ft_matrix = F.pad(ft_matrix, (klen - flen, 0))
+
+        for i in range(qlen):
+            ft_matrix[i] = torch.roll(ft_matrix[i], -(qlen - i - 1))
+
+        ft_matrix = torch.tril(ft_matrix, (klen - qlen))
+
+        if self.same_length:
+            ft_matrix = torch.triu(ft_matrix, 0)
+        return ft_matrix
+
+    def forward(self, x, p, qlen: int, add_position: bool):
+        if add_position:
+            x = x + p
+
+        x = self.dropout(x)
+
+        ft_matrix = self.ft_matrix[-qlen:, -x.size(1):].to(x.device)
+        # ft_matrix = self.init_ft_matrix(qlen=qlen, klen=x.size(1)).to(x.device)
+
+        x = torch.einsum('lm,bmd->bld', ft_matrix, x.type_as(ft_matrix)) / np.sqrt(x.size(1))
+        # x = torch.fft.fft(x, dim=-1).real
+        x = x.real
+        return x
+
+class FnetarLayer(nn.Module):
+    def __init__(self, d_model: int, d_inner: int, drop_out: float, tgt_len: int, mem_len: int, same_length: bool=True):
+        super(FnetarLayer, self).__init__()
+
+        self.frr = Fourier(tgt_len=tgt_len, mem_len=mem_len, dropout=drop_out, same_length=same_length)
+        self.ff = FeedForward(d_in=d_model, d_hidden=d_inner, drop=drop_out)
+        self.norm = nn.ModuleList([nn.LayerNorm(d_model),nn.LayerNorm(d_model)])
+
+    def forward(self, x, mem: torch.Tensor, p: torch.Tensor, add_position: bool) -> torch.Tensor:
+        x_mem = torch.cat([mem.to(x.device), x], dim=1)
+
+        x = self.norm[0](x + self.frr(x_mem, p, qlen=x.size(1), add_position=add_position))
+        x = self.norm[1](x + self.ff(x))
+        return x
+
 class XlLayer(nn.Module):
     def __init__(self, d_model: int, n_head: int, d_head: int, d_inner: int, drop_out: float, drop_att: float):
         super(XlLayer, self).__init__()
@@ -20,7 +77,7 @@ class XlLayer(nn.Module):
     def forward(self, x, mem: torch.Tensor, p: torch.Tensor, position: nn.Module, mask: nn.Module) -> torch.Tensor:
         x_mem = torch.cat([mem.to(x.device), x], dim=1)
 
-        x = self.norm[0](x + self.attn(x_mem, p, position, qlen=x.size(1), attn_mask=mask))
+        x = self.norm[0](x + self.attn(x_mem, p, position, mask=mask, qlen=x.size(1)))
         x = self.norm[1](x + self.ff(x))
         return x
 
@@ -47,7 +104,13 @@ class Xl(nn.Module):
                 d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
                 drop_out=drop_out, drop_att=drop_att
             )
-            for _ in range(n_layer)
+            for _ in range(n_layer // 2)
+        ] + [
+            FnetarLayer(
+                d_model=d_model, d_inner=d_inner, drop_out=drop_out,
+                tgt_len=tgt_len, mem_len=mem_len, same_length=same_length
+            )
+            for _ in range(n_layer // 2)
         ])
         self.attn_mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
         self.drop_out = nn.Dropout(drop_out)
@@ -60,9 +123,18 @@ class Xl(nn.Module):
         p = self.drop_out(p)
 
         hids = [x]
+        first_fourier = True
 
         for i, layer in enumerate(self.layers):
-            x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
+            if isinstance(layer, XlLayer):
+                x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
+            elif isinstance(layer, FnetarLayer):
+                if first_fourier:
+                    add_position = True
+                    first_fourier = False
+                else:
+                    add_position = False
+                x = layer(x=x, mem=memory[i], p=p, add_position=add_position)
             hids.append(x)
 
         memory.update_memory(hids, memory, mlen, qlen)
@@ -89,7 +161,7 @@ class MemTransformerLM(nn.Module):
             mem_len: int=None,
             cutoffs: list=[],
             same_length: bool=False,
-            clamp_len: int=-1
+            clamp_len: int=-1,
     ):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
@@ -111,11 +183,10 @@ class MemTransformerLM(nn.Module):
         self.drop_out = nn.Dropout(drop_out)
 
         if tie_weight:
-            self.embedder.head.weight = self.predictor.head.weight
-            for i in range(len(self.embedder.cutoffs) - 1):
-                self.embedder.tail[i].weight = self.predictor.tail[i].weight
+            self._tie_weights()
 
-    def forward(self, x, y, memory: XlMemory):
+
+    def forward(self, x, y: torch.Tensor, memory: XlMemory) -> (torch.Tensor, XlMemory):
         x = self.embedder(x)
         x = self.drop_out(x)
 
@@ -125,6 +196,12 @@ class MemTransformerLM(nn.Module):
         loss = -output.output.view(y.size(1), -1)
 
         return loss, new_memory
+
+    def _tie_weights(self):
+        self.embedder.head.weight = self.predictor.head.weight
+        for i in range(len(self.embedder.cutoffs) - 1):
+            self.embedder.tail[i].weight = self.predictor.tail[i].weight
+
 
 
 

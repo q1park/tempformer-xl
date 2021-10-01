@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added typing and other refactorings">
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added method to XlMemory to output length of memory layers">
+      <change afterPath="$PROJECT_DIR$/pytorch/xlinitializer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/xlmemory.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlmemory.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlattention.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlposition.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlposition.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -135,7 +137,14 @@
       <option name="project" value="LOCAL" />
       <updated>1633017612245</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="-Added method to XlMemory to output length of memory layers">
+      <created>1633022069918</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1633022069918</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -164,6 +173,7 @@
     <MESSAGE value="FINISHED CONVERTING CODEBASE TO &quot;BATCH FIRST&quot; DATA (biggest source of error)!!!" />
     <MESSAGE value="-Cleared XlPosition module" />
     <MESSAGE value="-Added typing and other refactorings" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Added typing and other refactorings" />
+    <MESSAGE value="-Added method to XlMemory to output length of memory layers" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Added method to XlMemory to output length of memory layers" />
   </component>
 </project>

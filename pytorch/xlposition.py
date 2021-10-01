@@ -7,7 +7,7 @@ class XlPosition(nn.Module):
         self.d_model = d_model
         self.clamp_len = clamp_len
         self.bias = nn.ParameterDict({
-            'w': nn.Parameter(torch.Tensor(n_head, d_head)),
+            'k': nn.Parameter(torch.Tensor(n_head, d_head)),
             'r': nn.Parameter(torch.Tensor(n_head, d_head))
         })
 
@@ -23,4 +23,4 @@ class XlPosition(nn.Module):
         sinusoidal = torch.outer(pos_sequence, self.inv_freq)
         pos_grid = torch.cat([sinusoidal.sin(), sinusoidal.cos()], dim=-1)
 
-        return pos_grid[None, :, :]
+        return pos_grid[:, :]

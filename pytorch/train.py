@@ -167,41 +167,8 @@ if args.adaptive:
 ###############################################################################
 # Build the model
 ###############################################################################
-def init_weight(weight):
-    if args.init == 'uniform':
-        nn.init.uniform_(weight, -args.init_range, args.init_range)
-    elif args.init == 'normal':
-        nn.init.normal_(weight, 0.0, args.init_std)
 
-def init_bias(bias):
-    nn.init.constant_(bias, 0.0)
-
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        if hasattr(m, 'weight') and m.weight is not None:
-            init_weight(m.weight)
-        if hasattr(m, 'bias') and m.bias is not None:
-            init_bias(m.bias)
-
-    elif classname.find('Embedding') != -1:
-        if hasattr(m, 'weight'):
-            init_weight(m.weight)
-    elif classname.find('AdaptiveLogSoftmax') != -1:
-        if hasattr(m, 'cluster') and m.cluster is not None:
-            init_weight(m.cluster.weight)
-            init_bias(m.cluster.bias)
-
-    elif classname.find('LayerNorm') != -1:
-        if hasattr(m, 'weight'):
-            nn.init.normal_(m.weight, 1.0, args.init_std)
-        if hasattr(m, 'bias') and m.bias is not None:
-            init_bias(m.bias)
-    elif classname.find('XlPosition') != -1:
-        if hasattr(m.bias, 'w'):
-            init_weight(m.bias['w'])
-        if hasattr(m.bias, 'r'):
-            init_weight(m.bias['r'])
+from xlinitializer import XlInitializer
 
 
 model = MemTransformerLM(
@@ -209,10 +176,11 @@ model = MemTransformerLM(
     args.d_head, args.d_inner, args.dropout, args.dropatt,
     tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
     tgt_len=args.tgt_len, ext_len=args.ext_len, mem_len=args.mem_len,
-    cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len
+    cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len,
 )
-model.apply(weights_init)
-model.embedder.apply(weights_init) # ensure embedding init is not overridden by out_layer in case of weight sharing
+initializer = XlInitializer()
+model.apply(initializer)
+model.embedder.apply(initializer) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.transformer.layers.parameters()])
