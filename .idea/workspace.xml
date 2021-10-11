@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added method to XlMemory to output length of memory layers">
-      <change afterPath="$PROJECT_DIR$/pytorch/xlinitializer.py" afterDir="false" />
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added prototype classes to run FNetAR">
+      <change afterPath="$PROJECT_DIR$/pytorch/feedback.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/feedbackattention.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/fnetar.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/fnetarattention.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/fnetarlayer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/xlattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlattention.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/xlposition.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xlposition.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -144,7 +145,14 @@
       <option name="project" value="LOCAL" />
       <updated>1633022069918</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="-Added prototype classes to run FNetAR">
+      <created>1633093509883</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1633093509883</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -174,6 +182,7 @@
     <MESSAGE value="-Cleared XlPosition module" />
     <MESSAGE value="-Added typing and other refactorings" />
     <MESSAGE value="-Added method to XlMemory to output length of memory layers" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Added method to XlMemory to output length of memory layers" />
+    <MESSAGE value="-Added prototype classes to run FNetAR" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Added prototype classes to run FNetAR" />
   </component>
 </project>
