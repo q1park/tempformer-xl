@@ -24,7 +24,7 @@ def default(val, d):
 def safe_cat(arr, el, dim=1):
     if not exists(arr):
         return el
-    return torch.cat((arr, el), dim=dim)
+    return torch.cat((arr.detach(), el), dim=dim)
 
 
 # positional embedding

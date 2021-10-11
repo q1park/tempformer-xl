@@ -1,20 +1,49 @@
 import torch
 import torch.nn as nn
-from blur.modeling.initializers import weights_init
-from blur.modeling.decoders.decoderfb import RelativePositionBias, Memory, exists
+
+from adaptiveinput import AdaptiveInput
+from adaptivelogsoftmax import AdaptiveLogSoftmax
+from feedback import RelativePositionBias
+from feedback import DecoderFb
+from feedbackmemories import FeedbackMemory
+from feedbackutils import exists
+
+from xlinitializer import XlInitializer as weights_init
+
+
+# from blur.modeling.initializers import weights_init
+# from blur.modeling.decoders.decoderfb import RelativePositionBias, Memory, exists
 
 
 class FeedbackBlur(nn.Module):
-    def __init__(self, tgt_len, mem_len, ext_len, encoder, decoder, lm_loss, tie_weight=True, clamp_len=-1):
+    def __init__(
+            self,
+            n_token, n_layer, n_head, d_model, d_head, d_inner, drop_out, drop_att,
+            tie_weight=True, d_embed=None, div_val=1,
+            tgt_len=None, mem_len=None, ext_len=None,
+            cutoffs=[], same_length=False, clamp_len=-1
+    ):
         super(FeedbackBlur, self).__init__()
+        self.n_token = n_token
+        self.n_layer = n_layer
+        self.n_head = n_head
+        self.d_head = d_head
+
+        d_embed = d_model if d_embed is None else d_embed
+        self.d_embed = d_embed
+        self.d_model = d_model
+
         self.tgt_len = tgt_len
         self.mem_len = mem_len
         self.ext_len = ext_len
 
-        self.pos_emb = RelativePositionBias(causal=True, heads=decoder.n_head)
-        self.encoder = encoder
-        self.decoder = decoder
-        self.lm_loss = lm_loss
+        self.pos_emb = RelativePositionBias(causal=True, heads=n_head)
+        self.encoder = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
+        self.transformer = DecoderFb(
+            n_layer, n_head, d_model, d_head=d_head, d_inner=d_inner, dropout=drop_out, dropatt=drop_att,
+            mem_len=mem_len, seq_len=tgt_len, keep_last_hidden=False, same_length=same_length, pre_lnorm=False
+        )
+        self.lm_loss = AdaptiveLogSoftmax(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
 
         if tie_weight:
             self._share_weights()
@@ -33,11 +62,15 @@ class FeedbackBlur(nn.Module):
         self.encoder.apply(weights_init)  # ensure embedding init not overridden by weight sharing
 
     def _share_weights(self):
+        self.encoder.head.weight = self.lm_loss.head.weight
         for i in range(len(self.encoder.cutoffs) - 1):
-            self.encoder.tail[i][0].weight = self.lm_loss.tail[i][1].weight
-            self.encoder.tail[i][1].weight = torch.nn.Parameter(
-                self.lm_loss.tail[i][0].weight.transpose(0, 1)
-            )  # sharing the projection layers
+            self.encoder.tail[i].weight = self.lm_loss.tail[i].weight
+
+        # for i in range(len(self.encoder.cutoffs) - 1):
+        #     self.encoder.tail[i][0].weight = self.lm_loss.tail[i][1].weight
+        #     self.encoder.tail[i][1].weight = torch.nn.Parameter(
+        #         self.lm_loss.tail[i][0].weight.transpose(0, 1)
+        #     )  # sharing the projection layers
 
     def _reset_length(self, tgt_len, ext_len, mem_len):
         self.tgt_len = tgt_len
@@ -48,7 +81,7 @@ class FeedbackBlur(nn.Module):
         if self.mem_len > 0:
             mems = []
 
-            for i in range(self.decoder.n_layer + 1):
+            for i in range(self.transformer.n_layer + 1):
                 empty = torch.empty(0, dtype=self.param_dtype, device=device)
                 mems.append(empty)
 
@@ -85,7 +118,7 @@ class FeedbackBlur(nn.Module):
         output = self.lm_loss(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))
         return -output.output.view(tgt_len, -1)
 
-    def forward(self, x, target, memory=None, return_memory=False):
+    def forward(self, x, y, memory=None, return_memory=False):
         b, n, device = *x.shape, x.device
 
         x = self.encoder(x)
@@ -99,30 +132,34 @@ class FeedbackBlur(nn.Module):
         outputs = []
 
         # calculate weighting of layers for storing to memory
-        layer_weight = self.decoder.get_layer_weight()
+        layer_weight = self.transformer.get_layer_weight()
 
         for x in x.split(self.mem_len, dim=1):
-            dec_outp = self.decoder(
+            dec_outp = self.transformer(
                 dec_inp=x, pos_emb=self.pos_emb,
-                mems=Memory(memory_keys, memory_values),
+                mems=FeedbackMemory(memory_keys, memory_values),
                 layer_weight=layer_weight
             )
             x = dec_outp['output']
-            agg_hiddens = dec_outp['agg_hiddens']
+            # agg_hiddens = dec_outp['agg_hiddens']
             memory_keys, memory_values = dec_outp['mems']
 
             outputs.append(x)
 
         x = torch.cat((outputs), dim=1)
 
+        output = self.lm_loss(x.view(-1, x.size(-1)), y.view(-1))
+        loss = -output.output.view(y.size(1), -1)
 
-        output = {
-            'output': self._seq_first(x),
-            'mems': None,
-            'loss': self._batch_first(self.compute_loss(x, target))
-        }
+        new_memory = FeedbackMemory(memory_keys, memory_values)
 
-        if return_memory:
-            output['mems'] = Memory(memory_keys, memory_values)
+        # output = {
+        #     'output': self._seq_first(x),
+        #     'mems': None,
+        #     'loss': self._batch_first(self.compute_loss(x, target))
+        # }
+        #
+        # if return_memory:
+        #     output['mems'] = FeedbackMemory(memory_keys, memory_values)
 
-        return output
+        return loss, new_memory

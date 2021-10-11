@@ -7,8 +7,8 @@ if [[ $1 == 'train' ]]; then
         --data ../data/wikitext-103/ \
         --dataset wt103 \
         --adaptive \
-        --n_layer 16 \
-        --d_model 410 \
+        --n_layer 6 \
+        --d_model 512 \
         --n_head 10 \
         --d_head 41 \
         --d_inner 2100 \
@@ -18,9 +18,9 @@ if [[ $1 == 'train' ]]; then
         --lr 0.00025 \
         --warmup_step 0 \
         --max_step 200000 \
-        --tgt_len 150 \
-        --mem_len 150 \
-        --eval_tgt_len 150 \
+        --tgt_len 500 \
+        --mem_len 100 \
+        --eval_tgt_len 500 \
         --batch_size 60 \
         --batch_chunk 10 \
         ${@:2}

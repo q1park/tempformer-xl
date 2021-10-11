@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-from blur import Blur
+from feedbackblur import FeedbackBlur
 from feedbackmemories import FeedbackMemories
 
 from data_utils import get_lm_corpus
@@ -171,16 +171,16 @@ if args.adaptive:
 from xlinitializer import XlInitializer
 
 
-model = Blur(
+model = FeedbackBlur(
     ntokens, args.n_layer, args.n_head, args.d_model,
     args.d_head, args.d_inner, args.dropout, args.dropatt,
     tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
     tgt_len=args.tgt_len, ext_len=args.ext_len, mem_len=args.mem_len,
     cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len,
 )
-initializer = XlInitializer()
-model.apply(initializer)
-model.embedder.apply(initializer) # ensure embedding init is not overridden by out_layer in case of weight sharing
+# initializer = XlInitializer()
+# model.apply(initializer)
+# model.embedder.apply(initializer) # ensure embedding init is not overridden by out_layer in case of weight sharing
 
 args.n_all_param = sum([p.nelement() for p in model.parameters()])
 args.n_nonemb_param = sum([p.nelement() for p in model.transformer.layers.parameters()])
