@@ -3,26 +3,10 @@ import torch.nn as nn
 
 from adaptiveinput import AdaptiveInput
 from adaptivelogsoftmax import AdaptiveLogSoftmax
-from feedforward import FeedForward
-from xlattention import XlAttention
 from xlmask import XlMask
 from xlmemory import XlMemory
 from xlposition import XlPosition
-
-class XlLayer(nn.Module):
-    def __init__(self, d_model: int, n_head: int, d_head: int, d_inner: int, drop_out: float, drop_att: float):
-        super(XlLayer, self).__init__()
-
-        self.attn = XlAttention(d_model=d_model, n_head=n_head, d_head=d_head, drop_out=drop_out, drop_att=drop_att)
-        self.ff = FeedForward(d_in=d_model, d_hidden=d_inner, drop=drop_out)
-        self.norm = nn.ModuleList([nn.LayerNorm(d_model),nn.LayerNorm(d_model)])
-
-    def forward(self, x, mem: torch.Tensor, p: torch.Tensor, position: nn.Module, mask: nn.Module) -> torch.Tensor:
-        x_mem = torch.cat([mem.to(x.device), x], dim=1)
-
-        x = self.norm[0](x + self.attn(x_mem, p, position, mask=mask, qlen=x.size(1)))
-        x = self.norm[1](x + self.ff(x))
-        return x
+from xllayer import XlLayer
 
 class Xl(nn.Module):
     def __init__(
@@ -69,6 +53,8 @@ class Xl(nn.Module):
         x = self.drop_out(x)
 
         return x, memory
+
+from fnetarlayer import FnetarLayer
 
 class Fnetar(nn.Module):
     def __init__(
@@ -163,7 +149,7 @@ class MemTransformerLM(nn.Module):
         self.d_model = d_model
 
         self.embedder = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-        self.transformer = Xl(
+        self.transformer = Fnetar(
             n_layer=n_layer, d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
             drop_out=drop_out, drop_att=drop_att, tgt_len=tgt_len, mem_len=mem_len,
             same_length=same_length, clamp_len=clamp_len
