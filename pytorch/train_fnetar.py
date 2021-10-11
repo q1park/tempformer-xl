@@ -11,7 +11,7 @@ import torch
 import torch.optim as optim
 
 
-from blur import Blur
+from blurfnetar import BlurFnetar
 from modules.xlmemories import XlMemories
 
 from utils.data_utils import get_lm_corpus
@@ -170,7 +170,7 @@ if args.adaptive:
 from xlinitializer import XlInitializer
 
 
-model = Blur(
+model = BlurFnetar(
     ntokens, args.n_layer, args.n_head, args.d_model,
     args.d_head, args.d_inner, args.dropout, args.dropatt,
     tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,

@@ -6,8 +6,8 @@ import os
 
 import torch
 
-from pytorch.data_utils import get_lm_corpus
-from xlmemories import XlMemories
+from pytorch.utils.data_utils import get_lm_corpus
+from pytorch.modules.xlmemories import XlMemories
 from utils.exp_utils import get_logger
 
 parser = argparse.ArgumentParser(description='PyTorch Transformer Language Model')

@@ -1,18 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Added partially complete modules for Feedback Transformer">
-      <change afterPath="$PROJECT_DIR$/pytorch/feedbackutils.py" afterDir="false" />
+    <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-Working prototype for Feedback Transformer">
+      <change afterPath="$PROJECT_DIR$/pytorch/blurfnetar.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/feedbacklayer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/modules/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/modules/feedbackattention.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/run_wt103_base_fnetar.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/train_fnetar.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/utils/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/adaptiveinput.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/adaptiveinput.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/adaptivelogsoftmax.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/adaptivelogsoftmax.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/blur.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/blur.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/utils/data_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/eval.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/eval.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/feedback.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/feedback.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/feedbackblur.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/feedbackblur.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base_feedback.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base_feedback.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedbackattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedbackblur.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/blurfeedback.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedbackmemories.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/feedbackmemories.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedbackutils.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/feedbackutils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedforward.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/feedforward.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/fnetar.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/fnetar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/fnetarattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/fnetarattention.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/fnetarlayer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/fnetarlayer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytorch/train_feedback.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train_feedback.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xl.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xl.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/xlattention.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xllayer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/xllayer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlmask.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/xlmask.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlmemories.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/xlmemories.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlmemory.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/xlmemory.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/xlposition.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/modules/xlposition.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -33,6 +65,9 @@
       <recent name="$PROJECT_DIR$/pytorch" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/pytorch/modules" />
+      <recent name="$PROJECT_DIR$/pytorch/" />
+      <recent name="$PROJECT_DIR$/pytorch/utils" />
       <recent name="C:\dev\tempformer-xl\pytorch" />
       <recent name="C:\dev\tempformer-xl\pytorch\utils" />
     </key>
@@ -172,7 +207,14 @@
       <option name="project" value="LOCAL" />
       <updated>1633966919916</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="-Working prototype for Feedback Transformer">
+      <created>1633976019414</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1633976019414</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -205,6 +247,7 @@
     <MESSAGE value="-Added prototype classes to run FNetAR" />
     <MESSAGE value="-test" />
     <MESSAGE value="-Added partially complete modules for Feedback Transformer" />
-    <option name="LAST_COMMIT_MESSAGE" value="-Added partially complete modules for Feedback Transformer" />
+    <MESSAGE value="-Working prototype for Feedback Transformer" />
+    <option name="LAST_COMMIT_MESSAGE" value="-Working prototype for Feedback Transformer" />
   </component>
 </project>

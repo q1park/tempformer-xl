@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from feedforward import FeedForward
-from xlattention import XlAttention
+from modules.feedforward import FeedForward
+from modules.xlattention import XlAttention
 
 class XlLayer(nn.Module):
     def __init__(self, d_model: int, n_head: int, d_head: int, d_inner: int, drop_out: float, drop_att: float):

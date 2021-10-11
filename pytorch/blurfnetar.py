@@ -4,9 +4,9 @@ import torch.nn as nn
 from modules.adaptiveinput import AdaptiveInput
 from modules.adaptivelogsoftmax import AdaptiveLogSoftmax
 from modules.xlmemory import XlMemory
-from xl import Xl
+from fnetar import Fnetar
 
-class Blur(nn.Module):
+class BlurFnetar(nn.Module):
     def __init__(
             self,
             n_token: int,
@@ -27,7 +27,7 @@ class Blur(nn.Module):
             same_length: bool=False,
             clamp_len: int=-1,
     ):
-        super(Blur, self).__init__()
+        super(BlurFnetar, self).__init__()
         self.n_token = n_token
         self.n_layer = n_layer
         self.n_head = n_head
@@ -38,7 +38,7 @@ class Blur(nn.Module):
         self.d_model = d_model
 
         self.embedder = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-        self.transformer = Xl(
+        self.transformer = Fnetar(
             n_layer=n_layer, d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
             drop_out=drop_out, drop_att=drop_att, tgt_len=tgt_len, mem_len=mem_len,
             same_length=same_length, clamp_len=clamp_len

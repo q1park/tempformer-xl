@@ -1,21 +1,17 @@
 import torch
 import torch.nn as nn
 
-from adaptiveinput import AdaptiveInput
-from adaptivelogsoftmax import AdaptiveLogSoftmax
-from feedback import RelativePositionBias
-from feedback import DecoderFb
-from feedbackmemories import FeedbackMemory
-from feedbackutils import exists
+from modules.adaptiveinput import AdaptiveInput
+from modules.adaptivelogsoftmax import AdaptiveLogSoftmax
+from modules.feedbackmemories import FeedbackMemory
+from modules.feedbackutils import exists
+from feedbacklayer import RelativePositionBias
+from feedback import Feedback
 
 from xlinitializer import XlInitializer as weights_init
 
 
-# from blur.modeling.initializers import weights_init
-# from blur.modeling.decoders.decoderfb import RelativePositionBias, Memory, exists
-
-
-class FeedbackBlur(nn.Module):
+class BlurFeedback(nn.Module):
     def __init__(
             self,
             n_token, n_layer, n_head, d_model, d_head, d_inner, drop_out, drop_att,
@@ -23,7 +19,7 @@ class FeedbackBlur(nn.Module):
             tgt_len=None, mem_len=None, ext_len=None,
             cutoffs=[], same_length=False, clamp_len=-1
     ):
-        super(FeedbackBlur, self).__init__()
+        super(BlurFeedback, self).__init__()
         self.n_token = n_token
         self.n_layer = n_layer
         self.n_head = n_head
@@ -39,7 +35,7 @@ class FeedbackBlur(nn.Module):
 
         self.pos_emb = RelativePositionBias(causal=True, heads=n_head)
         self.encoder = AdaptiveInput(d_model=d_model, n_classes=n_token, cutoffs=cutoffs, div_value=div_val)
-        self.transformer = DecoderFb(
+        self.transformer = Feedback(
             n_layer, n_head, d_model, d_head=d_head, d_inner=d_inner, dropout=drop_out, dropatt=drop_att,
             mem_len=mem_len, seq_len=tgt_len, keep_last_hidden=False, same_length=same_length, pre_lnorm=False
         )

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from xlmemory import XlMemory
+from modules.xlmemory import XlMemory
 
 class XlMemories(nn.Module):
     def __init__(

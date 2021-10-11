@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from feedforward import FeedForward
-from fnetarattention import FnetarAttention
+from modules.feedforward import FeedForward
+from modules.fnetarattention import FnetarAttention
 
 
 class FnetarLayer(nn.Module):

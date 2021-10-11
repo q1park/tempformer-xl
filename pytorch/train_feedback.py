@@ -8,14 +8,13 @@ import itertools
 import numpy as np
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 
-from feedbackblur import FeedbackBlur
-from feedbackmemories import FeedbackMemories
+from blurfeedback import BlurFeedback
+from modules.feedbackmemories import FeedbackMemories
 
-from data_utils import get_lm_corpus
+from utils.data_utils import get_lm_corpus
 from utils.exp_utils import create_exp_dir
 
 parser = argparse.ArgumentParser(description='PyTorch Transformer Language Model')
@@ -168,15 +167,13 @@ if args.adaptive:
 # Build the model
 ###############################################################################
 
-from xlinitializer import XlInitializer
 
-
-model = FeedbackBlur(
+model = BlurFeedback(
     ntokens, args.n_layer, args.n_head, args.d_model,
     args.d_head, args.d_inner, args.dropout, args.dropatt,
     tie_weight=args.tied, d_embed=args.d_embed, div_val=args.div_val,
     tgt_len=args.tgt_len, ext_len=args.ext_len, mem_len=args.mem_len,
-    cutoffs=cutoffs,same_length=args.same_length, clamp_len=args.clamp_len,
+    cutoffs=cutoffs, same_length=args.same_length, clamp_len=args.clamp_len,
 )
 # initializer = XlInitializer()
 # model.apply(initializer)

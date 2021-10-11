@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-from xlmask import XlMask
-from xlmemory import XlMemory
-from xlposition import XlPosition
+from modules.xlmask import XlMask
+from modules.xlmemory import XlMemory
+from modules.xlposition import XlPosition
 from xllayer import XlLayer
 
 class Xl(nn.Module):

@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from xlposition import XlPosition
+from modules.xlposition import XlPosition
+# from xlposition import XlPosition
 
 class XlAttention(nn.Module):
     def __init__(self, d_model: int, n_head: int, d_head: int, drop_out: float, drop_att: float=0.):
