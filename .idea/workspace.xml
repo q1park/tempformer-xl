@@ -2,12 +2,17 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9b25cc73-ce12-4fb9-a6e5-46b78956882d" name="Default Changelist" comment="-test">
-      <change afterPath="$PROJECT_DIR$/pytorch/xllayer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/transformer-xl.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/transformer-xl.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/feedbackblur.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/feedbackmemories.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/run_wt103_base_feedback.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/train_feedback.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pytorch/xl.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/mem_transformer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/run_wt103_base.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedback.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/feedback.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/feedbackattention.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/feedbackattention.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/fnetar.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/fnetar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/mem_transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/blur.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pytorch/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytorch/train.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -158,7 +163,14 @@
       <option name="project" value="LOCAL" />
       <updated>1633953271850</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="-test">
+      <created>1633962211846</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1633962211846</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">

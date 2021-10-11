@@ -13,7 +13,7 @@ import torch.optim as optim
 
 
 from blur import Blur
-from xlmemories import XlMemories
+from feedbackmemories import FeedbackMemories
 
 from data_utils import get_lm_corpus
 from utils.exp_utils import create_exp_dir
@@ -226,14 +226,7 @@ def evaluate(eval_iter):
     # Evaluation
     total_len, total_loss = 0, 0.
 
-    eval_memories = XlMemories(
-        n_stream=1,
-        n_layer=args.n_layer,
-        tgt_len=eval_tgt_len,
-        mem_len=eval_mem_len,
-        ext_len=eval_ext_len,
-        dtype=next(model.parameters()).dtype
-    )
+    eval_memories = FeedbackMemories(n_stream=1)
 
     with torch.no_grad():
 
@@ -258,14 +251,7 @@ def train():
     global train_step, train_loss, best_val_loss, eval_start_time, log_start_time
     model.train()
 
-    memories = XlMemories(
-        n_stream=args.batch_chunk,
-        n_layer=args.n_layer,
-        tgt_len=args.tgt_len,
-        mem_len=args.mem_len,
-        ext_len=args.ext_len,
-        dtype=next(model.parameters()).dtype
-    )
+    memories = FeedbackMemories(n_stream=args.batch_chunk)
 
     train_iter = tr_iter
     for batch, (data, target, seq_len) in enumerate(train_iter):

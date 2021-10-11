@@ -5,9 +5,8 @@ from xlmask import XlMask
 from xlmemory import XlMemory
 from xlposition import XlPosition
 from xllayer import XlLayer
-from fnetarlayer import FnetarLayer
 
-class Fnetar(nn.Module):
+class Xl(nn.Module):
     def __init__(
             self,
             n_layer: int,
@@ -22,7 +21,7 @@ class Fnetar(nn.Module):
             same_length: bool=False,
             clamp_len: int=-1
     ):
-        super(Fnetar, self).__init__()
+        super(Xl, self).__init__()
 
         self.position = XlPosition(d_model=d_model, n_head=n_head, d_head=d_head, clamp_len=clamp_len)
         self.layers = nn.ModuleList([
@@ -30,13 +29,7 @@ class Fnetar(nn.Module):
                 d_model=d_model, n_head=n_head, d_head=d_head, d_inner=d_inner,
                 drop_out=drop_out, drop_att=drop_att
             )
-            for _ in range(n_layer // 2)
-        ] + [
-            FnetarLayer(
-                d_model=d_model, d_inner=d_inner, drop_out=drop_out,
-                tgt_len=tgt_len, mem_len=mem_len, same_length=same_length
-            )
-            for _ in range(n_layer // 2)
+            for _ in range(n_layer)
         ])
         self.attn_mask = XlMask(tgt_len=tgt_len, mem_len=mem_len, same_length=same_length)
         self.drop_out = nn.Dropout(drop_out)
@@ -49,18 +42,9 @@ class Fnetar(nn.Module):
         p = self.drop_out(p)
 
         hids = [x]
-        first_fourier = True
 
         for i, layer in enumerate(self.layers):
-            if isinstance(layer, XlLayer):
-                x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
-            elif isinstance(layer, FnetarLayer):
-                if first_fourier:
-                    add_position = True
-                    first_fourier = False
-                else:
-                    add_position = False
-                x = layer(x=x, mem=memory[i], p=p, add_position=add_position)
+            x = layer(x=x, mem=memory[i], p=p, position=self.position, mask=self.attn_mask)
             hids.append(x)
 
         memory.update_memory(hids, memory, mlen, qlen)

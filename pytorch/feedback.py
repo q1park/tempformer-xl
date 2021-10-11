@@ -1,128 +1,311 @@
+import math
+from collections import namedtuple
+
 import torch
-import torch.nn as nn
-from blur.modeling.initializers import weights_init
-from blur.modeling.decoders.decoderfb import RelativePositionBias, Memory, exists
+from torch import nn, einsum
+import torch.nn.functional as F
+from einops import rearrange
+
+# constants
+
+Memory = namedtuple('Memory', ['keys', 'values'])
 
 
-class BlurFb(nn.Module):
-    def __init__(self, tgt_len, mem_len, ext_len, encoder, decoder, lm_loss, tie_weight=True, clamp_len=-1):
-        super(BlurFb, self).__init__()
-        self.tgt_len = tgt_len
-        self.mem_len = mem_len
-        self.ext_len = ext_len
+# helpers
 
-        self.pos_emb = RelativePositionBias(causal=True, heads=decoder.n_head)
-        self.encoder = encoder
-        self.decoder = decoder
-        self.lm_loss = lm_loss
+def exists(val):
+    return val is not None
 
-        if tie_weight:
-            self._share_weights()
 
-        self._init_weights()
-        self.param_dtype = next(self.parameters()).dtype
+def default(val, d):
+    return val if exists(val) else d
 
-    def _batch_first(self, t):
-        return torch.einsum('i...k->k...i', t)
 
-    def _seq_first(self, t):
-        return torch.einsum('ik...->ki...', t)
+def safe_cat(arr, el, dim=1):
+    if not exists(arr):
+        return el
+    return torch.cat((arr, el), dim=dim)
 
-    def _init_weights(self):
-        self.apply(weights_init)
-        self.encoder.apply(weights_init)  # ensure embedding init not overridden by weight sharing
 
-    def _share_weights(self):
-        for i in range(len(self.encoder.cutoffs) - 1):
-            self.encoder.tail[i][0].weight = self.lm_loss.tail[i][1].weight
-            self.encoder.tail[i][1].weight = torch.nn.Parameter(
-                self.lm_loss.tail[i][0].weight.transpose(0, 1)
-            )  # sharing the projection layers
+# positional embedding
 
-    def _reset_length(self, tgt_len, ext_len, mem_len):
-        self.tgt_len = tgt_len
-        self.mem_len = mem_len
-        self.ext_len = ext_len
+class RelativePositionBias(nn.Module):
+    def __init__(
+            self,
+            causal=False,
+            num_buckets=32,
+            max_distance=128,
+            heads=8
+    ):
+        super().__init__()
+        self.causal = causal
+        self.num_buckets = num_buckets
+        self.max_distance = max_distance
+        self.relative_attention_bias = nn.Embedding(num_buckets, heads)
 
-    def _init_mems(self, device):
-        if self.mem_len > 0:
-            mems = []
-
-            for i in range(self.decoder.n_layer + 1):
-                empty = torch.empty(0, dtype=self.param_dtype, device=device)
-                mems.append(empty)
-
-            return mems
+    @staticmethod
+    def _relative_position_bucket(relative_position, causal=True, num_buckets=32, max_distance=128):
+        ret = 0
+        n = -relative_position
+        if not causal:
+            num_buckets //= 2
+            ret += (n < 0).long() * num_buckets
+            n = torch.abs(n)
         else:
-            return None
+            n = torch.max(n, torch.zeros_like(n))
 
-    def _update_mems(self, hids, mems, qlen, mlen):
-        # does not deal with None
-        if mems is None: return None
+        max_exact = num_buckets // 2
+        is_small = n < max_exact
 
-        # mems is not None
-        assert len(hids) == len(mems), 'len(hids) != len(mems)'
+        val_if_large = max_exact + (
+                torch.log(n.float() / max_exact) / math.log(max_distance / max_exact) * (num_buckets - max_exact)
+        ).long()
+        val_if_large = torch.min(val_if_large, torch.full_like(val_if_large, num_buckets - 1))
 
-        # There are `mlen + qlen` steps that can be cached into mems
-        # For the next step, the last `ext_len` of the `qlen` tokens
-        # will be used as the extended context. Hence, we only cache
-        # the tokens from `mlen + qlen - self.ext_len - self.mem_len`
-        # to `mlen + qlen - self.ext_len`.
-        with torch.no_grad():
-            new_mems = []
-            end_idx = mlen + max(0, qlen - 0 - self.ext_len)
-            beg_idx = max(0, end_idx - self.mem_len)
-            for i in range(len(hids)):
-                cat = torch.cat([mems[i], hids[i]], dim=0)
-                new_mems.append(cat[beg_idx:end_idx].detach())
+        ret += torch.where(is_small, n, val_if_large)
+        return ret
 
-        return new_mems
+    def forward(self, qk_dots):
+        i, j, device = *qk_dots.shape[-2:], qk_dots.device
+        q_pos = torch.arange(i, dtype=torch.long, device=device)
+        k_pos = torch.arange(j, dtype=torch.long, device=device)
+        rel_pos = k_pos[None, :] - q_pos[:, None]
+        rp_bucket = self._relative_position_bucket(rel_pos, causal=self.causal, num_buckets=self.num_buckets,
+                                                   max_distance=self.max_distance)
+        values = self.relative_attention_bias(rp_bucket)
+        bias = rearrange(values, 'i j h -> () h i j')
+        return bias
 
-    def compute_loss(self, core_out, target):
-        tgt_len = target.size(0)
-        pred_hid = core_out[-tgt_len:]
 
-        output = self.lm_loss(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))
-        return -output.output.view(tgt_len, -1)
+# helper classes
 
-    def forward(self, x, target, memory=None, return_memory=False):
-        b, n, device = *x.shape, x.device
+class Residual(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.fn = fn
 
-        x = self.encoder(x)
+    def forward(self, x, **kwargs):
+        return self.fn(x, **kwargs) + x
 
-        memory_keys = None
-        memory_values = None
 
-        if exists(memory) and len(memory) == 2:
-            memory_keys, memory_values = memory
+class PreNorm(nn.Module):
+    def __init__(self, dim, fn):
+        super().__init__()
+        self.fn = fn
+        self.norm = nn.LayerNorm(dim)
 
-        outputs = []
+    def forward(self, x, **kwargs):
+        x = self.norm(x)
+        return self.fn(x, **kwargs)
 
-        # calculate weighting of layers for storing to memory
-        layer_weight = self.decoder.get_layer_weight()
 
-        for x in x.split(self.mem_len, dim=1):
-            dec_outp = self.decoder(
-                dec_inp=x, pos_emb=self.pos_emb,
-                mems=Memory(memory_keys, memory_values),
-                layer_weight=layer_weight
-            )
-            x = dec_outp['output']
-            agg_hiddens = dec_outp['agg_hiddens']
-            memory_keys, memory_values = dec_outp['mems']
+class SkipIf(nn.Module):
+    def __init__(self, cond, fn):
+        super().__init__()
+        self.cond = cond
+        self.fn = fn
 
-            outputs.append(x)
+    def forward(self, x, *args, **kwargs):
+        if self.cond(x, *args, **kwargs):
+            return x
+        return self.fn(x, *args, **kwargs)
 
-        x = torch.cat((outputs), dim=1)
 
+# feedforward
+
+class GEGLU(nn.Module):
+    def forward(self, x):
+        x, gate = x.chunk(2, dim=-1)
+        return F.gelu(gate) * x
+
+
+class FeedForward(nn.Module):
+    def __init__(
+            self,
+            *,
+            dim,
+            mult=4,
+            dropout=0.
+    ):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(dim, dim * mult * 2),
+            GEGLU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim * mult, dim)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+# attention
+
+class Attention(nn.Module):
+    def __init__(
+            self,
+            *,
+            dim,
+            heads=8,
+            dim_head=64,
+            dropout=0.
+    ):
+        super().__init__()
+        self.dim = dim
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        inner_dim = dim_head * heads
+        self.to_q = nn.Linear(dim, inner_dim, bias=False)
+        self.to_kv = nn.Linear(dim, inner_dim * 2, bias=False)
+        self.to_out = nn.Linear(inner_dim, dim)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, memory, pos_emb=None):
+        h, n, device = self.heads, x.shape[1], x.device
+
+        self_attend = n > 1  # only self attend if going at greater than 1 token at a time
+
+        q = self.to_q(x) * self.scale
+
+        k, v = memory if exists(memory) else (None, None)
+
+        if self_attend:
+            self_k, self_v = self.to_kv(x).chunk(2, dim=-1)
+            k = safe_cat(k, self_k, dim=1)
+            v = safe_cat(v, self_v, dim=1)
+
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), (q, k, v))
+
+        sim = einsum('b h i d, b h j d -> b h i j', q, k)
+        i, j = sim.shape[-2:]
+
+        if exists(pos_emb):
+            sim = sim + pos_emb(sim)
+
+        if self_attend:
+            causal_mask = torch.ones(i, j, device=device).triu_(j - i + 1).bool()
+            causal_mask = rearrange(causal_mask, 'i j -> () () i j')
+            mask_value = -torch.finfo(q.dtype).max
+            sim.masked_fill_(causal_mask, mask_value)
+
+        attn = sim.softmax(dim=-1)
+        attn = self.dropout(attn)
+
+        out = einsum('b h i j, b h j d -> b h i d', attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
+
+
+class DecoderFbLayer(nn.Module):
+    def __init__(self, n_head, d_model, d_head, d_inner, dropout, dropatt, pre_lnorm=None):
+        super(DecoderFbLayer, self).__init__()
+        self.d_model = d_model
+        self.dec_attn = Attention(dim=d_model, heads=n_head, dim_head=d_head, dropout=dropatt)
+        self.pos_ff = FeedForward(dim=d_model, dropout=dropout)
+
+    def init_module(self, shared_kv_proj, seq_len):
+        shared_kv_proj = default(shared_kv_proj, self.dec_attn.to_kv)
+        self.dec_attn.to_kv = shared_kv_proj
+
+        self.dec_attn, self.pos_ff = map(
+            lambda fn: Residual(PreNorm(self.d_model, fn)),
+            (self.dec_attn, self.pos_ff)
+        )
+
+        if seq_len == 1:
+            memory_is_empty = lambda *args, **kwargs: not exists(kwargs['memory'])
+            attn = SkipIf(memory_is_empty, self.dec_attn)
+
+        return shared_kv_proj
+
+    def forward(self, dec_inp, r, r_w_bias=None, r_r_bias=None, mems=None, dec_attn_mask=None):
+        output = self.dec_attn(dec_inp, memory=mems, pos_emb=r)
+        #         (dec_inp, r, r_w_bias, r_r_bias, attn_mask=dec_attn_mask, mems=mems)
+        output = self.pos_ff(output)
+
+        return output
+
+
+class DecoderFb(nn.Module):
+    def __init__(
+            self, n_layer, n_head, d_model, d_head=64,
+            d_inner=None, dropout=0., dropatt=0.,
+            mem_len=150, seq_len=150, keep_last_hidden=False,
+            same_length=False, pre_lnorm=False):
+        super(DecoderFb, self).__init__()
+        self.n_layer = n_layer
+        self.d_model = d_model
+        self.n_head = n_head
+        self.d_head = d_head
+        self.d_inner = d_inner
+        self.seq_len = seq_len
+        self.mem_len = mem_len
+        self.same_length = same_length
+        self.pre_lnorm = pre_lnorm
+
+        # main layers
+
+        self.layers = nn.ModuleList([])
+        shared_kv_proj = None
+
+        for _ in range(n_layer):
+            self.layers.append(DecoderFbLayer(
+                n_head=n_head, d_model=d_model, d_head=d_head, d_inner=None,
+                dropout=dropout, dropatt=dropatt
+            ))
+            shared_kv_proj = self.layers[-1].init_module(shared_kv_proj=shared_kv_proj, seq_len=self.seq_len)
+
+        # memory parameters
+
+        self.layer_weight = nn.Parameter(torch.ones(n_layer + 1))
+        self.shared_kv_proj = shared_kv_proj
+        self.keep_last_hidden = keep_last_hidden
+
+    def get_layer_weight(self):
+        layer_weight = self.layer_weight.softmax(dim=-1)
+        layer_weight = rearrange(layer_weight, 'd -> d () () ()')
+        return layer_weight
+
+    def forward(self, dec_inp, pos_emb, mems, layer_weight, dec_attn_mask=None):
+        if exists(mems):
+            memory_keys, memory_values = mems
+
+        dec_outp = dec_inp
+        # prepare memory for attention, if it exists
+        hiddens = [dec_outp]
+
+        memory = None
+        if exists(memory_keys):
+            memory = (memory_keys, memory_values)
+
+        for layer in self.layers:
+            dec_outp = layer(dec_inp=dec_outp, r=pos_emb, mems=memory)
+            hiddens.append(dec_outp)
+
+        # calculate new memory key / values and store to FIFO queue
+
+        if self.keep_last_hidden:  # secret option for only keeping last hidden layer, as in paper
+            agg_hiddens = hiddens[-1]
+        else:
+            hiddens = torch.stack(hiddens)
+            agg_hiddens = (hiddens * layer_weight).sum(dim=0)
+
+        # pre-calculate memory key / values and store to buffer
+
+        mem_k, mem_v = self.shared_kv_proj(agg_hiddens).chunk(2, dim=-1)
+        memory_keys = safe_cat(memory_keys, mem_k, dim=1)
+        memory_values = safe_cat(memory_values, mem_v, dim=1)
+
+        # enforce max length on memory buffer
+
+        memory_keys = memory_keys[:, -self.mem_len:]
+        memory_values = memory_values[:, -self.mem_len:]
 
         output = {
-            'output': self._seq_first(x),
-            'mems': None,
-            'loss': self._batch_first(self.compute_loss(x, target))
+            'output': dec_outp,
+            'mems': Memory(memory_keys, memory_values),
+            'agg_hiddens': agg_hiddens
         }
-
-        if return_memory:
-            output['mems'] = Memory(memory_keys, memory_values)
-
         return output
